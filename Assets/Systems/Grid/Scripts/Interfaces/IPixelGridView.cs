@@ -13,4 +13,5 @@ public interface IPixelGridView
     void SetEditorSelection(PixelPigColor color);
     void PlayShot(Vector2 from, Vector2 to, PixelPigColor color, Action onImpact);
     void PlayCellHit(int x, int y);
+    void SetConveyorCapacity(int remainingCapacity, int totalCapacity);
 }

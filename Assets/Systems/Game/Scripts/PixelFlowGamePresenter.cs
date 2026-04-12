@@ -5,7 +5,8 @@ using UnityEngine;
 public sealed class PixelFlowGamePresenter : IDisposable
 {
     private const int PigLineCount = 2;
-    private const float BasePigSpeed = 9.6F;
+    private const int ConveyorCapacity = 5;
+    private const float BasePigSpeed = 15F;
     private const float ConveyorPadding = 1F;
     private const float LaunchSpacing = 1.1F;
     private const float GuaranteeSpeedMultiplier = 1.8F;
@@ -98,6 +99,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         nextPigId = 1;
         GeneratePigLinesFromPuzzle();
         RenderWaitingArea();
+        UpdateConveyorCapacityDisplay();
         hudView.SetStatus("Launch pigs from the front of each line", Color.white);
         hudView.SetGuaranteeVisible(false);
         hudView.SetEditorButtonLabel(editorOpen ? "Close" : "Editor");
@@ -233,7 +235,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
 
             var pig = activePigs[pigIndex];
 
-            if (pig.AmmoRemaining <= 0)
+            if (pig.AmmoRemaining <= 0 || pig.Distance < 0F)
             {
                 continue;
             }
@@ -377,6 +379,12 @@ public sealed class PixelFlowGamePresenter : IDisposable
             return;
         }
 
+        if (!CanLaunchMorePigs())
+        {
+            hudView.SetStatus("Conveyor full", new Color32(255, 214, 122, 255));
+            return;
+        }
+
         var pig = slotAssignments[slotIndex];
 
         if (pig == null)
@@ -387,6 +395,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         slotAssignments[slotIndex] = null;
         LaunchPig(pig);
         RenderWaitingArea();
+        UpdateConveyorCapacityDisplay();
         hudView.SetStatus("Pigs are flowing", new Color32(220, 232, 255, 255));
     }
 
@@ -397,10 +406,17 @@ public sealed class PixelFlowGamePresenter : IDisposable
             return;
         }
 
+        if (!CanLaunchMorePigs())
+        {
+            hudView.SetStatus("Conveyor full", new Color32(255, 214, 122, 255));
+            return;
+        }
+
         var pig = pigLines[lineIndex][0];
         pigLines[lineIndex].RemoveAt(0);
         LaunchPig(pig);
         RenderWaitingArea();
+        UpdateConveyorCapacityDisplay();
         hudView.SetStatus("Pigs are flowing", new Color32(220, 232, 255, 255));
     }
 
@@ -416,6 +432,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
             slotAssignments[i] = pig;
             pig.IsActive = false;
             RenderWaitingArea();
+            UpdateConveyorCapacityDisplay();
             return true;
         }
 
@@ -487,6 +504,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         activePigs.RemoveAt(index);
         activePigViews.RemoveAt(index);
         RenderWaitingArea();
+        UpdateConveyorCapacityDisplay();
     }
 
     private void OnRestartRequested()
@@ -561,5 +579,15 @@ public sealed class PixelFlowGamePresenter : IDisposable
         }
 
         return cells.ToArray();
+    }
+
+    private bool CanLaunchMorePigs()
+    {
+        return activePigs.Count < ConveyorCapacity;
+    }
+
+    private void UpdateConveyorCapacityDisplay()
+    {
+        gridView.SetConveyorCapacity(ConveyorCapacity - activePigs.Count, ConveyorCapacity);
     }
 }

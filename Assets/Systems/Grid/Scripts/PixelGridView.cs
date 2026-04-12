@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
@@ -14,6 +15,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     private Transform boardRoot;
     private Transform effectsRoot;
+    private TextMeshPro conveyorCapacityText;
     private int width;
     private int height;
     private float cellSize;
@@ -56,6 +58,12 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         foreach (var conveyorObject in conveyorObjects)
         {
             Destroy(conveyorObject);
+        }
+
+        if (conveyorCapacityText != null)
+        {
+            Destroy(conveyorCapacityText.gameObject);
+            conveyorCapacityText = null;
         }
 
         cellObjects.Clear();
@@ -144,12 +152,45 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         }
     }
 
+    public void SetConveyorCapacity(int remainingCapacity, int totalCapacity)
+    {
+        if (conveyorCapacityText == null)
+        {
+            return;
+        }
+
+        conveyorCapacityText.text = $"{Mathf.Max(0, remainingCapacity)}/{Mathf.Max(0, totalCapacity)}";
+    }
+
     private void BuildConveyorVisuals()
     {
+        var cornerGap = 1F;
         CreateConveyorStrip("TopConveyor", new Vector3(boardSize.x + 2.4F, 0.16F, 0.45F), new Vector3(0F, 0F, boardSize.y * 0.5F + 1F));
-        CreateConveyorStrip("BottomConveyor", new Vector3(boardSize.x + 2.4F, 0.16F, 0.45F), new Vector3(0F, 0F, -boardSize.y * 0.5F - 1F));
-        CreateConveyorStrip("LeftConveyor", new Vector3(0.45F, 0.16F, boardSize.y + 2.4F), new Vector3(-boardSize.x * 0.5F - 1F, 0F, 0F));
+        CreateConveyorStrip("BottomConveyor", new Vector3(boardSize.x + 2.4F - cornerGap, 0.16F, 0.45F),
+            new Vector3(cornerGap * 0.5F, 0F, -boardSize.y * 0.5F - 1F));
+        CreateConveyorStrip("LeftConveyor", new Vector3(0.45F, 0.16F, boardSize.y + 2.4F - cornerGap),
+            new Vector3(-boardSize.x * 0.5F - 1F, 0F, cornerGap * 0.5F));
         CreateConveyorStrip("RightConveyor", new Vector3(0.45F, 0.16F, boardSize.y + 2.4F), new Vector3(boardSize.x * 0.5F + 1F, 0F, 0F));
+
+        var entryPad = WorldObjectUtility.CreatePrimitive(
+            "ConveyorEntryPad",
+            PrimitiveType.Cube,
+            transform,
+            new Vector3(-boardSize.x * 0.5F - 1F, -0.24F, -boardSize.y * 0.5F - 1F),
+            new Vector3(0.95F, 0.18F, 0.95F),
+            new Color32(210, 220, 232, 255));
+        conveyorObjects.Add(entryPad);
+
+        conveyorCapacityText = WorldObjectUtility.CreateWorldText(
+            "ConveyorCapacity",
+            transform,
+            new Vector3(-boardSize.x * 0.5F - 1F, 0.45F, -boardSize.y * 0.5F - 1F),
+            "5/5",
+            72,
+            Color.black,
+            TextAnchor.MiddleCenter,
+            0.11F);
+        conveyorCapacityText.transform.localRotation = Quaternion.Euler(90F, 0F, 0F);
     }
 
     private void CreateConveyorStrip(string name, Vector3 scale, Vector3 localPosition)
@@ -166,7 +207,8 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     private IEnumerator ShotRoutine(GameObject shotObject, Vector2 from, Vector2 to, Action onImpact)
     {
-        var duration = 0.18F;
+        var distance = Vector2.Distance(from, to);
+        var duration = Mathf.Max(0.01F, distance / 30F);
         var elapsed = 0F;
         var start = new Vector3(from.x, 0.72F, from.y);
         var end = new Vector3(to.x, 0.35F, to.y);

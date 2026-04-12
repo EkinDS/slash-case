@@ -2,10 +2,14 @@ using UnityEngine;
 
 public sealed class ConveyorLoopModel
 {
+    private const float CornerGap = 1F;
+
     private readonly Rect boardRect;
     private readonly float padding;
     private readonly float width;
     private readonly float height;
+    private readonly float bottomSegmentLength;
+    private readonly float leftSegmentLength;
 
     public ConveyorLoopModel(Rect boardRect, float padding)
     {
@@ -13,7 +17,9 @@ public sealed class ConveyorLoopModel
         this.padding = padding;
         width = boardRect.width + padding * 2F;
         height = boardRect.height + padding * 2F;
-        LoopLength = width * 2F + height * 2F;
+        bottomSegmentLength = Mathf.Max(0.001F, width - CornerGap);
+        leftSegmentLength = Mathf.Max(0.001F, height - CornerGap);
+        LoopLength = bottomSegmentLength + height + width + leftSegmentLength;
     }
 
     public float LoopLength { get; }
@@ -40,18 +46,26 @@ public sealed class ConveyorLoopModel
 
     public Vector2 EvaluatePosition(float distance)
     {
-        var wrappedDistance = WrapDistance(distance);
         var bottomLeft = new Vector2(boardRect.xMin - padding, boardRect.yMin - padding);
+        var startPoint = new Vector2(bottomLeft.x + CornerGap, bottomLeft.y);
+        var finishPoint = new Vector2(bottomLeft.x, bottomLeft.y + CornerGap);
         var bottomRight = new Vector2(boardRect.xMax + padding, boardRect.yMin - padding);
         var topRight = new Vector2(boardRect.xMax + padding, boardRect.yMax + padding);
         var topLeft = new Vector2(boardRect.xMin - padding, boardRect.yMax + padding);
 
-        if (wrappedDistance < width)
+        if (distance < 0F)
         {
-            return Vector2.Lerp(bottomLeft, bottomRight, width <= 0F ? 0F : wrappedDistance / width);
+            return bottomLeft + new Vector2(0F, distance);
         }
 
-        wrappedDistance -= width;
+        var wrappedDistance = WrapDistance(distance);
+
+        if (wrappedDistance < bottomSegmentLength)
+        {
+            return Vector2.Lerp(startPoint, bottomRight, bottomSegmentLength <= 0F ? 0F : wrappedDistance / bottomSegmentLength);
+        }
+
+        wrappedDistance -= bottomSegmentLength;
 
         if (wrappedDistance < height)
         {
@@ -66,19 +80,19 @@ public sealed class ConveyorLoopModel
         }
 
         wrappedDistance -= width;
-        return Vector2.Lerp(topLeft, bottomLeft, height <= 0F ? 0F : wrappedDistance / height);
+        return Vector2.Lerp(topLeft, finishPoint, leftSegmentLength <= 0F ? 0F : wrappedDistance / leftSegmentLength);
     }
 
     public ConveyorSide EvaluateSide(float distance)
     {
         var wrappedDistance = WrapDistance(distance);
 
-        if (wrappedDistance < width)
+        if (wrappedDistance < bottomSegmentLength)
         {
             return ConveyorSide.Bottom;
         }
 
-        wrappedDistance -= width;
+        wrappedDistance -= bottomSegmentLength;
 
         if (wrappedDistance < height)
         {
@@ -97,14 +111,19 @@ public sealed class ConveyorLoopModel
 
     public int EvaluateLineIndex(float distance, int gridWidth, int gridHeight)
     {
-        var wrappedDistance = WrapDistance(distance);
-
-        if (wrappedDistance < width)
+        if (distance < 0F)
         {
-            return NormalizeNormalizedDistance(width <= 0F ? 0F : wrappedDistance / width, gridWidth);
+            return 0;
         }
 
-        wrappedDistance -= width;
+        var wrappedDistance = WrapDistance(distance);
+
+        if (wrappedDistance < bottomSegmentLength)
+        {
+            return NormalizeNormalizedDistance(bottomSegmentLength <= 0F ? 0F : wrappedDistance / bottomSegmentLength, gridWidth);
+        }
+
+        wrappedDistance -= bottomSegmentLength;
 
         if (wrappedDistance < height)
         {
@@ -119,7 +138,7 @@ public sealed class ConveyorLoopModel
         }
 
         wrappedDistance -= width;
-        return NormalizeNormalizedDistance(height <= 0F ? 0F : wrappedDistance / height, gridHeight);
+        return NormalizeNormalizedDistance(leftSegmentLength <= 0F ? 0F : wrappedDistance / leftSegmentLength, gridHeight);
     }
 
     private static int NormalizeNormalizedDistance(float normalized, int lineCount)
