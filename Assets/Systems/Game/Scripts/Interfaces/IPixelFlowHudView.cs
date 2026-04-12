@@ -9,4 +9,5 @@ public interface IPixelFlowHudView
     void SetStatus(string text, Color color);
     void SetGuaranteeVisible(bool visible);
     void SetEditorButtonLabel(string label);
+    void SetLevelLabel(string text);
 }

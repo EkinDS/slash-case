@@ -6,6 +6,7 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
 {
     private TextMeshPro statusText;
     private TextMeshPro guaranteeText;
+    private TextMeshPro levelText;
 
     public event Action RestartRequested;
     public event Action EditorToggleRequested;
@@ -35,6 +36,16 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
             TextAnchor.MiddleCenter,
             0.08F);
         guaranteeText.gameObject.SetActive(false);
+
+        levelText = WorldObjectUtility.CreateWorldText(
+            "Level",
+            transform,
+            new Vector3(9.2F, 0.4F, 12.9F),
+            "Level 1",
+            56,
+            Color.white,
+            TextAnchor.MiddleRight,
+            0.08F);
     }
 
     public void SetStatus(string text, Color color)
@@ -51,5 +62,13 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
 
     public void SetEditorButtonLabel(string label)
     {
+    }
+
+    public void SetLevelLabel(string text)
+    {
+        if (levelText != null)
+        {
+            levelText.text = text;
+        }
     }
 }

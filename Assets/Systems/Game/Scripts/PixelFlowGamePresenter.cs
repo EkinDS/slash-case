@@ -32,6 +32,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private float currentSpeedMultiplier = 1F;
     private float guaranteeRampProgress;
     private int nextPigId;
+    private int pendingShots;
 
     public PixelFlowGamePresenter(IPixelGridView gridView, IWaitingSlotsView waitingSlotsView, IPixelFlowHudView hudView,
         Transform pigLayer)
@@ -48,6 +49,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     public event Action RestartRequested;
     public event Action EditorToggleRequested;
     public event Action<int, int> GridCellClicked;
+    public event Action LevelCompleted;
 
     public void Initialize()
     {
@@ -66,6 +68,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         currentSpeedMultiplier = 1F;
         guaranteeRampProgress = 0F;
         hasLaunchedPig = false;
+        pendingShots = 0;
 
         gridModel = new PixelGridModel(levelData);
         gridView.BuildGrid(gridModel.Width, gridModel.Height);
@@ -260,6 +263,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
             pig.ConsumeAmmo();
             activePigViews[pigIndex].SetAmmo(pig.AmmoRemaining);
             activePigViews[pigIndex].PlayHitFeedback();
+            pendingShots++;
             gridView.PlayShot(
                 activePigViews[pigIndex].Position,
                 gridView.GetCellCenter(hitResult.X, hitResult.Y),
@@ -268,6 +272,8 @@ public sealed class PixelFlowGamePresenter : IDisposable
                 {
                     gridView.RenderCell(hitResult.X, hitResult.Y, PixelPigColor.None, false);
                     gridView.PlayCellHit(hitResult.X, hitResult.Y);
+                    pendingShots = Mathf.Max(0, pendingShots - 1);
+                    CheckCompletion();
                 });
 
             if (pig.AmmoRemaining > 0)
@@ -294,13 +300,14 @@ public sealed class PixelFlowGamePresenter : IDisposable
             return;
         }
 
-        if (gridModel.RemainingPixelCount > 0)
+        if (gridModel.RemainingPixelCount > 0 || activePigs.Count > 0 || pendingShots > 0)
         {
             return;
         }
 
         levelCompleted = true;
         hudView.SetStatus("Level cleared", new Color32(114, 255, 167, 255));
+        LevelCompleted?.Invoke();
     }
 
     private bool IsGuaranteedFinish()

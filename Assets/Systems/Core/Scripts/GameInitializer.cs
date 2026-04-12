@@ -2,15 +2,17 @@ using UnityEngine;
 
 public class GameInitializer : MonoBehaviour
 {
-    private const string DefaultLevelResourcePath = "Levels/DefaultLevel";
+    private const int TotalGeneratedLevels = 5;
 
-    private PixelFlowLevelData defaultLevelData;
+    private System.Collections.Generic.List<PixelFlowLevelData> generatedLevels;
     private PixelFlowLevelData currentLevelData;
+    private int currentLevelIndex;
 
     private PixelFlowGamePresenter gamePresenter;
     private LevelEditorPresenter levelEditorPresenter;
     private PixelFlowLevelSaveLoad levelSaveLoad;
     private LevelEditorView levelEditorView;
+    private PixelFlowHudView hudView;
 
     private void Awake()
     {
@@ -25,7 +27,7 @@ public class GameInitializer : MonoBehaviour
         var slotsView = new GameObject("WaitingSlotsView").AddComponent<WaitingSlotsView>();
         slotsView.Initialize(worldRoot);
 
-        var hudView = new GameObject("HudView").AddComponent<PixelFlowHudView>();
+        hudView = new GameObject("HudView").AddComponent<PixelFlowHudView>();
         hudView.Initialize(worldRoot);
 
         levelEditorView = new GameObject("LevelEditorView").AddComponent<LevelEditorView>();
@@ -33,16 +35,18 @@ public class GameInitializer : MonoBehaviour
         levelEditorView.SetVisible(false);
 
         levelSaveLoad = new PixelFlowLevelSaveLoad();
-        defaultLevelData = PixelFlowLevelLoader.Load(Resources.Load<TextAsset>(DefaultLevelResourcePath));
-        currentLevelData = levelSaveLoad.Load() ?? CloneLevel(defaultLevelData);
+        generatedLevels = GeneratedLevelSet.CreateFiveLevels();
+        currentLevelIndex = 0;
+        currentLevelData = CloneLevel(generatedLevels[currentLevelIndex]);
 
         gamePresenter = new PixelFlowGamePresenter(gridView, slotsView, hudView, gridView.PigRoot);
         gamePresenter.Initialize();
         gamePresenter.RestartRequested += RestartLevel;
         gamePresenter.EditorToggleRequested += ToggleEditor;
         gamePresenter.GridCellClicked += OnGridCellClicked;
+        gamePresenter.LevelCompleted += AdvanceToNextLevel;
 
-        levelEditorPresenter = new LevelEditorPresenter(levelEditorView, levelSaveLoad, () => CloneLevel(defaultLevelData), ApplyLevel);
+        levelEditorPresenter = new LevelEditorPresenter(levelEditorView, levelSaveLoad, GetCurrentGeneratedLevel, ApplyLevel);
         levelEditorPresenter.SetLevel(currentLevelData);
 
         ApplyLevel(currentLevelData);
@@ -60,6 +64,7 @@ public class GameInitializer : MonoBehaviour
             gamePresenter.RestartRequested -= RestartLevel;
             gamePresenter.EditorToggleRequested -= ToggleEditor;
             gamePresenter.GridCellClicked -= OnGridCellClicked;
+            gamePresenter.LevelCompleted -= AdvanceToNextLevel;
             gamePresenter.Dispose();
         }
 
@@ -69,6 +74,12 @@ public class GameInitializer : MonoBehaviour
     private void RestartLevel()
     {
         ApplyLevel(currentLevelData);
+    }
+
+    private void AdvanceToNextLevel()
+    {
+        currentLevelIndex = (currentLevelIndex + 1) % TotalGeneratedLevels;
+        ApplyLevel(GetCurrentGeneratedLevel());
     }
 
     private void ToggleEditor()
@@ -97,9 +108,10 @@ public class GameInitializer : MonoBehaviour
 
     private void ApplyLevel(PixelFlowLevelData levelData, bool updateEditor)
     {
-        currentLevelData = CloneLevel(levelData ?? defaultLevelData);
+        currentLevelData = CloneLevel(levelData ?? GetCurrentGeneratedLevel());
         gamePresenter.LoadLevel(currentLevelData);
         gamePresenter.SetEditorOpen(levelEditorView != null && levelEditorView.gameObject.activeSelf);
+        hudView?.SetLevelLabel($"Level {currentLevelIndex + 1}");
 
         if (updateEditor)
         {
@@ -133,5 +145,20 @@ public class GameInitializer : MonoBehaviour
         }
 
         return JsonUtility.FromJson<PixelFlowLevelData>(JsonUtility.ToJson(source));
+    }
+
+    private PixelFlowLevelData GetCurrentGeneratedLevel()
+    {
+        if (generatedLevels == null || generatedLevels.Count == 0)
+        {
+            return new PixelFlowLevelData();
+        }
+
+        if (currentLevelIndex < 0 || currentLevelIndex >= generatedLevels.Count)
+        {
+            currentLevelIndex = 0;
+        }
+
+        return CloneLevel(generatedLevels[currentLevelIndex]);
     }
 }
