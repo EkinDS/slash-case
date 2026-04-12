@@ -19,7 +19,7 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
             "Status",
             transform,
             new Vector3(-9.5F, 0.4F, 12.9F),
-            "Launch pigs from the slots",
+            "Launch pigs from the front of each line",
             56,
             Color.white,
             TextAnchor.MiddleLeft,

@@ -6,7 +6,8 @@ public enum PixelPigColor
     Red = 0,
     Blue = 1,
     Green = 2,
-    Yellow = 3
+    Yellow = 3,
+    Black = 4
 }
 
 public static class PixelPigColorExtensions
@@ -23,6 +24,8 @@ public static class PixelPigColorExtensions
                 return new Color32(102, 214, 125, 255);
             case PixelPigColor.Yellow:
                 return new Color32(255, 205, 84, 255);
+            case PixelPigColor.Black:
+                return new Color32(28, 28, 34, 255);
             default:
                 return new Color32(47, 54, 79, 255);
         }
@@ -40,6 +43,8 @@ public static class PixelPigColorExtensions
                 return "Green";
             case PixelPigColor.Yellow:
                 return "Yellow";
+            case PixelPigColor.Black:
+                return "Black";
             default:
                 return "None";
         }

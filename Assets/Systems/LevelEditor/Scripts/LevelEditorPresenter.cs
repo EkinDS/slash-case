@@ -118,6 +118,12 @@ public sealed class LevelEditorPresenter : IDisposable
             new PigSpawnData(color, 4)
         };
         workingLevel.pigQueue = pigs.ToArray();
+        EnsurePigLines();
+        var linePigs = new List<PigSpawnData>(workingLevel.pigLines[0].pigs ?? new PigSpawnData[0])
+        {
+            new PigSpawnData(color, 4)
+        };
+        workingLevel.pigLines[0].pigs = linePigs.ToArray();
         view.SetSummary(workingLevel);
     }
 
@@ -131,6 +137,23 @@ public sealed class LevelEditorPresenter : IDisposable
         var pigs = new List<PigSpawnData>(workingLevel.pigQueue);
         pigs.RemoveAt(pigs.Count - 1);
         workingLevel.pigQueue = pigs.ToArray();
+
+        EnsurePigLines();
+
+        for (var lineIndex = workingLevel.pigLines.Length - 1; lineIndex >= 0; lineIndex--)
+        {
+            var linePigs = new List<PigSpawnData>(workingLevel.pigLines[lineIndex].pigs ?? new PigSpawnData[0]);
+
+            if (linePigs.Count == 0)
+            {
+                continue;
+            }
+
+            linePigs.RemoveAt(linePigs.Count - 1);
+            workingLevel.pigLines[lineIndex].pigs = linePigs.ToArray();
+            break;
+        }
+
         view.SetSummary(workingLevel);
     }
 
@@ -219,6 +242,7 @@ public sealed class LevelEditorPresenter : IDisposable
             height = FixedBoardSize,
             waitingSlotCount = source.waitingSlotCount,
             cells = CloneCells(source.cells),
+            pigLines = ClonePigLines(source.pigLines),
             pigQueue = ClonePigs(source.pigQueue)
         };
     }
@@ -283,5 +307,44 @@ public sealed class LevelEditorPresenter : IDisposable
         }
 
         return result;
+    }
+
+    private static PigLineData[] ClonePigLines(PigLineData[] source)
+    {
+        if (source == null)
+        {
+            return new PigLineData[0];
+        }
+
+        var result = new PigLineData[source.Length];
+
+        for (var i = 0; i < source.Length; i++)
+        {
+            result[i] = new PigLineData
+            {
+                pigs = ClonePigs(source[i] != null ? source[i].pigs : null)
+            };
+        }
+
+        return result;
+    }
+
+    private void EnsurePigLines()
+    {
+        if (workingLevel == null)
+        {
+            return;
+        }
+
+        if (workingLevel.pigLines != null && workingLevel.pigLines.Length >= 2)
+        {
+            return;
+        }
+
+        workingLevel.pigLines = new[]
+        {
+            new PigLineData(),
+            new PigLineData()
+        };
     }
 }

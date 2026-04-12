@@ -41,32 +41,32 @@ public sealed class ConveyorLoopModel
     public Vector2 EvaluatePosition(float distance)
     {
         var wrappedDistance = WrapDistance(distance);
-        var topLeft = new Vector2(boardRect.xMin - padding, boardRect.yMax + padding);
-        var topRight = new Vector2(boardRect.xMax + padding, boardRect.yMax + padding);
-        var bottomRight = new Vector2(boardRect.xMax + padding, boardRect.yMin - padding);
         var bottomLeft = new Vector2(boardRect.xMin - padding, boardRect.yMin - padding);
+        var bottomRight = new Vector2(boardRect.xMax + padding, boardRect.yMin - padding);
+        var topRight = new Vector2(boardRect.xMax + padding, boardRect.yMax + padding);
+        var topLeft = new Vector2(boardRect.xMin - padding, boardRect.yMax + padding);
 
         if (wrappedDistance < width)
         {
-            return Vector2.Lerp(topLeft, topRight, width <= 0F ? 0F : wrappedDistance / width);
+            return Vector2.Lerp(bottomLeft, bottomRight, width <= 0F ? 0F : wrappedDistance / width);
         }
 
         wrappedDistance -= width;
 
         if (wrappedDistance < height)
         {
-            return Vector2.Lerp(topRight, bottomRight, height <= 0F ? 0F : wrappedDistance / height);
+            return Vector2.Lerp(bottomRight, topRight, height <= 0F ? 0F : wrappedDistance / height);
         }
 
         wrappedDistance -= height;
 
         if (wrappedDistance < width)
         {
-            return Vector2.Lerp(bottomRight, bottomLeft, width <= 0F ? 0F : wrappedDistance / width);
+            return Vector2.Lerp(topRight, topLeft, width <= 0F ? 0F : wrappedDistance / width);
         }
 
         wrappedDistance -= width;
-        return Vector2.Lerp(bottomLeft, topLeft, height <= 0F ? 0F : wrappedDistance / height);
+        return Vector2.Lerp(topLeft, bottomLeft, height <= 0F ? 0F : wrappedDistance / height);
     }
 
     public ConveyorSide EvaluateSide(float distance)
@@ -75,7 +75,7 @@ public sealed class ConveyorLoopModel
 
         if (wrappedDistance < width)
         {
-            return ConveyorSide.Top;
+            return ConveyorSide.Bottom;
         }
 
         wrappedDistance -= width;
@@ -89,7 +89,7 @@ public sealed class ConveyorLoopModel
 
         if (wrappedDistance < width)
         {
-            return ConveyorSide.Bottom;
+            return ConveyorSide.Top;
         }
 
         return ConveyorSide.Left;
@@ -101,34 +101,34 @@ public sealed class ConveyorLoopModel
 
         if (wrappedDistance < width)
         {
-            return NormalizeLineIndex(boardRect.xMin, boardRect.width, EvaluatePosition(distance).x, gridWidth);
+            return NormalizeNormalizedDistance(width <= 0F ? 0F : wrappedDistance / width, gridWidth);
         }
 
         wrappedDistance -= width;
 
         if (wrappedDistance < height)
         {
-            return NormalizeLineIndex(boardRect.yMax, -boardRect.height, EvaluatePosition(distance).y, gridHeight);
+            return NormalizeNormalizedDistance(height <= 0F ? 0F : 1F - (wrappedDistance / height), gridHeight);
         }
 
         wrappedDistance -= height;
 
         if (wrappedDistance < width)
         {
-            return NormalizeLineIndex(boardRect.xMax, -boardRect.width, EvaluatePosition(distance).x, gridWidth);
+            return NormalizeNormalizedDistance(width <= 0F ? 0F : 1F - (wrappedDistance / width), gridWidth);
         }
 
-        return NormalizeLineIndex(boardRect.yMin, boardRect.height, EvaluatePosition(distance).y, gridHeight);
+        wrappedDistance -= width;
+        return NormalizeNormalizedDistance(height <= 0F ? 0F : wrappedDistance / height, gridHeight);
     }
 
-    private static int NormalizeLineIndex(float axisStart, float axisLength, float axisValue, int lineCount)
+    private static int NormalizeNormalizedDistance(float normalized, int lineCount)
     {
-        if (lineCount <= 1 || Mathf.Abs(axisLength) < 0.001F)
+        if (lineCount <= 1)
         {
             return 0;
         }
 
-        var normalized = Mathf.Clamp01((axisValue - axisStart) / axisLength);
         return Mathf.Clamp(Mathf.RoundToInt(normalized * (lineCount - 1)), 0, lineCount - 1);
     }
 }

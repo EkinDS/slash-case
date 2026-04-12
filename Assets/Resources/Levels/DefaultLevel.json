@@ -1,7 +1,7 @@
 {
   "width": 20,
   "height": 20,
-  "waitingSlotCount": 6,
+  "waitingSlotCount": 5,
   "cells": [
     { "x": 0, "y": 0, "color": 0 },
     { "x": 1, "y": 0, "color": 0 },
@@ -364,18 +364,20 @@
     { "x": 13, "y": 12, "color": 1 },
     { "x": 14, "y": 12, "color": 1 }
   ],
-  "pigQueue": [
-    { "color": 0, "ammo": 40 },
-    { "color": 0, "ammo": 40 },
-    { "color": 0, "ammo": 40 },
-    { "color": 1, "ammo": 32 },
-    { "color": 1, "ammo": 32 },
-    { "color": 1, "ammo": 32 },
-    { "color": 1, "ammo": 32 },
-    { "color": 2, "ammo": 20 },
-    { "color": 2, "ammo": 20 },
-    { "color": 2, "ammo": 20 },
-    { "color": 3, "ammo": 26 },
-    { "color": 3, "ammo": 26 }
-  ]
+  "pigLines": [
+    {
+      "pigs": [
+        { "color": 4, "ammo": 20 },
+        { "color": 3, "ammo": 20 },
+        { "color": 1, "ammo": 20 }
+      ]
+    },
+    {
+      "pigs": [
+        { "color": 0, "ammo": 10 },
+        { "color": 1, "ammo": 15 }
+      ]
+    }
+  ],
+  "pigQueue": []
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -91,17 +92,19 @@ public sealed class LevelEditorView : MonoBehaviour, ILevelEditorView
         var builder = new StringBuilder();
         builder.AppendLine($"Grid: {levelData.width} x {levelData.height}");
         builder.AppendLine($"Slots: {levelData.waitingSlotCount}");
-        builder.AppendLine("Pig Queue:");
+        builder.AppendLine("Generated order:");
 
-        if (levelData.pigQueue == null || levelData.pigQueue.Length == 0)
+        var generatedSequence = PigLineGenerator.GenerateSolvableSequence(levelData);
+
+        if (generatedSequence.Count == 0)
         {
-            builder.AppendLine("Empty");
+            builder.AppendLine("None");
         }
         else
         {
-            for (var i = 0; i < levelData.pigQueue.Length; i++)
+            for (var i = 0; i < generatedSequence.Count; i++)
             {
-                var pig = levelData.pigQueue[i];
+                var pig = generatedSequence[i];
                 builder.AppendLine($"{i + 1}. {pig.color.ToDisplayName()} ({pig.ammo})");
             }
         }
