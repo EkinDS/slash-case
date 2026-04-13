@@ -198,6 +198,12 @@ public sealed class PixelFlowGamePresenter : IDisposable
                 continue;
             }
 
+            if (guaranteedMode)
+            {
+                pigModel.ResetShotTracking();
+                continue;
+            }
+
             var parked = TryParkPig(pigModel);
 
             if (!parked)
@@ -317,7 +323,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
 
     private bool IsGuaranteedFinish()
     {
-        if (gridModel.RemainingPixelCount <= 0 || !hasLaunchedPig || activePigs.Count > 0 || pendingShots > 0)
+        if (gridModel.RemainingPixelCount <= 0 || !hasLaunchedPig || pendingShots > 0)
         {
             return false;
         }
@@ -326,6 +332,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
             BuildCurrentCells(),
             BuildCurrentPigLines(),
             BuildCurrentSlots(),
+            BuildCurrentActivePigs(),
             slotAssignments.Count);
     }
 
@@ -601,6 +608,19 @@ public sealed class PixelFlowGamePresenter : IDisposable
         }
 
         return slots;
+    }
+
+    private IReadOnlyList<PigSpawnData> BuildCurrentActivePigs()
+    {
+        var pigs = new List<PigSpawnData>(activePigs.Count);
+
+        for (var i = 0; i < activePigs.Count; i++)
+        {
+            var pig = activePigs[i];
+            pigs.Add(new PigSpawnData(pig.Color, pig.AmmoRemaining));
+        }
+
+        return pigs;
     }
 
     private bool CanLaunchMorePigs()

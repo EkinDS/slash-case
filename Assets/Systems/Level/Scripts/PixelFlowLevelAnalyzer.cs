@@ -14,7 +14,8 @@ public static class PixelFlowLevelAnalyzer
             return false;
         }
 
-        var state = CreateState(levelData.cells, levelData.pigLines, CreateEmptySlots(levelData.waitingSlotCount), levelData.waitingSlotCount);
+        var state = CreateState(levelData.cells, levelData.pigLines, CreateEmptySlots(levelData.waitingSlotCount),
+            CreateEmptyActivePigs(), levelData.waitingSlotCount);
         var memo = new Dictionary<string, bool>();
         return IsSolvable(state, memo);
     }
@@ -23,9 +24,10 @@ public static class PixelFlowLevelAnalyzer
         PixelCellData[] cells,
         IReadOnlyList<IReadOnlyList<PigSpawnData>> pigLines,
         IReadOnlyList<PigSpawnData> slots,
+        IReadOnlyList<PigSpawnData> activePigs,
         int slotCapacity)
     {
-        var state = CreateState(cells, pigLines, slots, slotCapacity);
+        var state = CreateState(cells, pigLines, slots, activePigs, slotCapacity);
         var memo = new Dictionary<string, bool>();
         return IsUnlosable(state, memo);
     }
@@ -70,6 +72,19 @@ public static class PixelFlowLevelAnalyzer
             return cached;
         }
 
+        if (state.ActivePigs.Count > 0)
+        {
+            if (!TryResolveNextActivePig(state, out var nextState))
+            {
+                memo[key] = false;
+                return false;
+            }
+
+            var result = IsSolvable(nextState, memo);
+            memo[key] = result;
+            return result;
+        }
+
         var moves = BuildMoves(state);
 
         if (moves.Count == 0)
@@ -108,6 +123,19 @@ public static class PixelFlowLevelAnalyzer
         if (memo.TryGetValue(key, out var cached))
         {
             return cached;
+        }
+
+        if (state.ActivePigs.Count > 0)
+        {
+            if (!TryResolveNextActivePig(state, out var nextState))
+            {
+                memo[key] = false;
+                return false;
+            }
+
+            var result = IsUnlosable(nextState, memo);
+            memo[key] = result;
+            return result;
         }
 
         var moves = BuildMoves(state);
@@ -168,6 +196,45 @@ public static class PixelFlowLevelAnalyzer
             if (nextState.Slots[i] == null)
             {
                 nextState.Slots[i] = new PigSpawnData(launchedPig.color, ammoRemaining);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveNextActivePig(AnalysisState state, out AnalysisState nextState)
+    {
+        nextState = CloneState(state);
+
+        if (nextState.ActivePigs.Count == 0)
+        {
+            return true;
+        }
+
+        var activePig = nextState.ActivePigs[0];
+        nextState.ActivePigs.RemoveAt(0);
+
+        if (activePig == null || activePig.color == PixelPigColor.None || activePig.ammo <= 0)
+        {
+            return true;
+        }
+
+        var ammoRemaining = activePig.ammo;
+        var remainingCells = nextState.RemainingCells;
+        RunLoop(nextState.Board, ref remainingCells, activePig.color, ref ammoRemaining);
+        nextState.RemainingCells = remainingCells;
+
+        if (ammoRemaining <= 0)
+        {
+            return true;
+        }
+
+        for (var i = 0; i < nextState.Slots.Count; i++)
+        {
+            if (nextState.Slots[i] == null)
+            {
+                nextState.Slots[i] = new PigSpawnData(activePig.color, ammoRemaining);
                 return true;
             }
         }
@@ -272,7 +339,8 @@ public static class PixelFlowLevelAnalyzer
         return moves;
     }
 
-    private static AnalysisState CreateState(PixelCellData[] cells, PigLineData[] pigLines, PigSpawnData[] slots, int slotCapacity)
+    private static AnalysisState CreateState(PixelCellData[] cells, PigLineData[] pigLines, PigSpawnData[] slots,
+        PigSpawnData[] activePigs, int slotCapacity)
     {
         var lines = new List<List<PigSpawnData>>();
 
@@ -298,13 +366,14 @@ public static class PixelFlowLevelAnalyzer
             }
         }
 
-        return CreateState(cells, lines, slots, slotCapacity);
+        return CreateState(cells, lines, slots, activePigs, slotCapacity);
     }
 
     private static AnalysisState CreateState(
         PixelCellData[] cells,
         IReadOnlyList<IReadOnlyList<PigSpawnData>> pigLines,
         IReadOnlyList<PigSpawnData> slots,
+        IReadOnlyList<PigSpawnData> activePigs,
         int slotCapacity)
     {
         var board = new PixelPigColor[BoardSize, BoardSize];
@@ -379,7 +448,22 @@ public static class PixelFlowLevelAnalyzer
             slotList.Add(pig);
         }
 
-        return new AnalysisState(board, remainingCells, lines, slotList);
+        var activePigList = new List<PigSpawnData>();
+
+        if (activePigs != null)
+        {
+            for (var i = 0; i < activePigs.Count; i++)
+            {
+                var pig = activePigs[i];
+
+                if (pig != null)
+                {
+                    activePigList.Add(new PigSpawnData(pig.color, pig.ammo));
+                }
+            }
+        }
+
+        return new AnalysisState(board, remainingCells, lines, slotList, activePigList);
     }
 
     private static AnalysisState CloneState(AnalysisState state)
@@ -417,7 +501,15 @@ public static class PixelFlowLevelAnalyzer
             slots.Add(pig != null ? new PigSpawnData(pig.color, pig.ammo) : null);
         }
 
-        return new AnalysisState(board, state.RemainingCells, lines, slots);
+        var activePigs = new List<PigSpawnData>(state.ActivePigs.Count);
+
+        for (var i = 0; i < state.ActivePigs.Count; i++)
+        {
+            var pig = state.ActivePigs[i];
+            activePigs.Add(pig != null ? new PigSpawnData(pig.color, pig.ammo) : null);
+        }
+
+        return new AnalysisState(board, state.RemainingCells, lines, slots, activePigs);
     }
 
     private static string BuildStateKey(AnalysisState state)
@@ -462,6 +554,14 @@ public static class PixelFlowLevelAnalyzer
             builder.Append(slotKeys[i]).Append(';');
         }
 
+        builder.Append('|');
+
+        for (var i = 0; i < state.ActivePigs.Count; i++)
+        {
+            var pig = state.ActivePigs[i];
+            builder.Append(pig == null ? "_" : $"{(int)pig.color}:{pig.ammo}").Append(';');
+        }
+
         return builder.ToString();
     }
 
@@ -469,6 +569,11 @@ public static class PixelFlowLevelAnalyzer
     {
         var safeSlotCount = Math.Max(0, slotCount);
         return new PigSpawnData[safeSlotCount];
+    }
+
+    private static PigSpawnData[] CreateEmptyActivePigs()
+    {
+        return Array.Empty<PigSpawnData>();
     }
 
     private static Dictionary<PixelPigColor, int> BuildRequiredCounts(PixelCellData[] cells)
@@ -586,17 +691,20 @@ public static class PixelFlowLevelAnalyzer
 
     private sealed class AnalysisState
     {
-        public AnalysisState(PixelPigColor[,] board, int remainingCells, List<List<PigSpawnData>> lines, List<PigSpawnData> slots)
+        public AnalysisState(PixelPigColor[,] board, int remainingCells, List<List<PigSpawnData>> lines, List<PigSpawnData> slots,
+            List<PigSpawnData> activePigs)
         {
             Board = board;
             RemainingCells = remainingCells;
             Lines = lines;
             Slots = slots;
+            ActivePigs = activePigs;
         }
 
         public PixelPigColor[,] Board { get; }
         public int RemainingCells { get; set; }
         public List<List<PigSpawnData>> Lines { get; }
         public List<PigSpawnData> Slots { get; }
+        public List<PigSpawnData> ActivePigs { get; }
     }
 }
