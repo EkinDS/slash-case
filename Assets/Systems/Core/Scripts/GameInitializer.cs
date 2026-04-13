@@ -2,9 +2,12 @@ using UnityEngine;
 
 public class GameInitializer : MonoBehaviour
 {
+    private const float LevelTransitionDelaySeconds = 0.5F;
+
     private System.Collections.Generic.List<PixelFlowLevelData> loadedLevels;
     private PixelFlowLevelData currentLevelData;
     private int currentLevelIndex;
+    private Coroutine levelTransitionCoroutine;
 
     private PixelFlowGamePresenter gamePresenter;
     private LevelEditorPresenter levelEditorPresenter;
@@ -57,6 +60,12 @@ public class GameInitializer : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (levelTransitionCoroutine != null)
+        {
+            StopCoroutine(levelTransitionCoroutine);
+            levelTransitionCoroutine = null;
+        }
+
         if (gamePresenter != null)
         {
             gamePresenter.RestartRequested -= RestartLevel;
@@ -76,10 +85,12 @@ public class GameInitializer : MonoBehaviour
 
     private void AdvanceToNextLevel()
     {
-        currentLevelIndex = loadedLevels != null && loadedLevels.Count > 0
-            ? (currentLevelIndex + 1) % loadedLevels.Count
-            : 0;
-        ApplyLevel(GetCurrentLoadedLevel());
+        if (levelTransitionCoroutine != null)
+        {
+            StopCoroutine(levelTransitionCoroutine);
+        }
+
+        levelTransitionCoroutine = StartCoroutine(AdvanceToNextLevelRoutine());
     }
 
     private void ToggleEditor()
@@ -160,5 +171,16 @@ public class GameInitializer : MonoBehaviour
         }
 
         return CloneLevel(loadedLevels[currentLevelIndex]);
+    }
+
+    private System.Collections.IEnumerator AdvanceToNextLevelRoutine()
+    {
+        yield return new WaitForSeconds(LevelTransitionDelaySeconds);
+
+        currentLevelIndex = loadedLevels != null && loadedLevels.Count > 0
+            ? (currentLevelIndex + 1) % loadedLevels.Count
+            : 0;
+        ApplyLevel(GetCurrentLoadedLevel());
+        levelTransitionCoroutine = null;
     }
 }

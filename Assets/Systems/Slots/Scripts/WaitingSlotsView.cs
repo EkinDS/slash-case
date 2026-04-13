@@ -7,6 +7,9 @@ using UnityEngine;
 public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 {
     private const int PigLineCount = 2;
+    private const float QueuedPigScale = 1.44F;
+    private const float QueuedPigSpacing = 2.15F;
+    private const float QueuedPigFrontOffset = 1.3F;
 
     private readonly List<GameObject> slotObjects = new List<GameObject>();
     private readonly List<TextMeshPro> slotTexts = new List<TextMeshPro>();
@@ -28,7 +31,7 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         {
             var lineRoot = new GameObject($"PigLine_{i}").transform;
             lineRoot.SetParent(slotRoot, false);
-            lineRoot.localPosition = new Vector3(-1.6F + i * 3.2F, 0F, -2.4F);
+            lineRoot.localPosition = new Vector3(-2.25F + i * 4.5F, 0F, -5.6F);
             lineRoots.Add(lineRoot);
             linePigObjects.Add(new List<GameObject>());
         }
@@ -151,8 +154,8 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
                     $"QueuedPig_{lineIndex}_{pigIndex}",
                     PrimitiveType.Cube,
                     lineRoots[lineIndex],
-                    new Vector3(0F, 0F, 0.9F - pigIndex * 1.25F),
-                    new Vector3(0.9F, 0.32F, 0.9F),
+                    new Vector3(0F, 0F, QueuedPigFrontOffset - pigIndex * QueuedPigSpacing),
+                    new Vector3(QueuedPigScale, 0.56F, QueuedPigScale),
                     state.Color.ToUnityColor());
 
                 if (pigIndex == 0)
@@ -169,12 +172,12 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
                 var text = WorldObjectUtility.CreateWorldText(
                     "Ammo",
                     pigObject.transform,
-                    new Vector3(0F, 0.62F, 0F),
+                    new Vector3(0F, 0.95F, 0F),
                     state.Ammo.ToString(),
                     56,
                     Color.black,
                     TextAnchor.MiddleCenter,
-                    0.098F);
+                    0.14F);
                 text.transform.localRotation = Quaternion.Euler(90F, 0F, 0F);
 
                 pigObjects.Add(pigObject);

@@ -5,6 +5,10 @@ using UnityEngine;
 public sealed class PigView : MonoBehaviour, IPigView
 {
     private const float ConveyorRideHeight = 0.85F;
+    private const float PigScaleMultiplier = 2F;
+    private static readonly Vector3 BodyBaseScale = new Vector3(0.72F, 0.72F, 0.72F) * PigScaleMultiplier;
+    private static readonly Vector3 LaunchStartScale = Vector3.one * 0.65F;
+    private static readonly Vector3 LaunchEndScale = Vector3.one;
     private static readonly Quaternion AmmoTextWorldRotation = Quaternion.Euler(90F, 0F, 0F);
 
     private Transform cachedTransform;
@@ -30,21 +34,22 @@ public sealed class PigView : MonoBehaviour, IPigView
             "Body",
             PrimitiveType.Cube,
             visualRoot,
-            new Vector3(0F, 0.42F, 0F),
-            new Vector3(0.72F, 0.72F, 0.72F));
+            new Vector3(0F, 0.42F * PigScaleMultiplier, 0F),
+            BodyBaseScale);
         WorldObjectUtility.SetColor(bodyObject, color.ToUnityColor());
         Destroy(bodyObject.GetComponent<Collider>());
 
         ammoText = WorldObjectUtility.CreateWorldText(
             "Ammo",
             cachedTransform,
-            new Vector3(0F, 1.6F, 0F),
+            new Vector3(0F, 2.35F, 0F),
             "0",
             96,
             Color.black,
             TextAnchor.MiddleCenter,
-            0.12F);
+            0.18F);
         ammoText.text = "0";
+        cachedTransform.localScale = LaunchEndScale;
         OrientAmmoText();
     }
 
@@ -52,7 +57,8 @@ public sealed class PigView : MonoBehaviour, IPigView
     {
         cachedTransform.position = new Vector3(anchoredPosition.x, ConveyorRideHeight, anchoredPosition.y);
         walkCycle += Time.deltaTime * 14F;
-        bodyObject.transform.localPosition = new Vector3(0F, 0.42F + Mathf.Abs(Mathf.Sin(walkCycle)) * 0.08F, 0F);
+        bodyObject.transform.localPosition = new Vector3(0F,
+            0.42F * PigScaleMultiplier + Mathf.Abs(Mathf.Sin(walkCycle)) * 0.12F * PigScaleMultiplier, 0F);
         OrientAmmoText();
     }
 
@@ -75,7 +81,7 @@ public sealed class PigView : MonoBehaviour, IPigView
 
     public void PlayLaunch()
     {
-        StartManagedRoutine(PulseScale(Vector3.one * 0.65F, Vector3.one, 0.18F));
+        StartManagedRoutine(PulseScale(LaunchStartScale, LaunchEndScale, 0.18F));
     }
 
     public void PlayHitFeedback()
@@ -95,14 +101,11 @@ public sealed class PigView : MonoBehaviour, IPigView
 
     private IEnumerator HitRoutine()
     {
-        var originalScale = cachedTransform.localScale;
-        var originalColor = bodyObject.GetComponent<Renderer>().material.color;
-        WorldObjectUtility.SetColor(bodyObject, Color.white);
-        bodyObject.transform.localScale = Vector3.one * 1.12F;
+        cachedTransform.localScale = LaunchEndScale * 1.08F;
+        bodyObject.transform.localScale = BodyBaseScale * 1.05F;
         yield return new WaitForSeconds(0.06F);
-        WorldObjectUtility.SetColor(bodyObject, originalColor);
-        cachedTransform.localScale = originalScale;
-        bodyObject.transform.localScale = Vector3.one;
+        cachedTransform.localScale = LaunchEndScale;
+        bodyObject.transform.localScale = BodyBaseScale;
         activeRoutine = null;
     }
 
