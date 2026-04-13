@@ -47,6 +47,8 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     public void BuildGrid(int width, int height)
     {
+        StopAllCoroutines();
+
         this.width = Mathf.Max(1, width);
         this.height = Mathf.Max(1, height);
 
@@ -215,12 +217,22 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
         while (elapsed < duration)
         {
+            if (shotObject == null)
+            {
+                yield break;
+            }
+
             elapsed += Time.deltaTime;
             var t = Mathf.Clamp01(elapsed / duration);
             var position = Vector3.Lerp(start, end, t);
             position.y += Mathf.Sin(t * Mathf.PI) * 0.35F;
             shotObject.transform.position = position;
             yield return null;
+        }
+
+        if (shotObject == null)
+        {
+            yield break;
         }
 
         shotObject.transform.position = end;
@@ -230,11 +242,22 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     private IEnumerator CellHitRoutine(GameObject cellObject)
     {
+        if (cellObject == null)
+        {
+            yield break;
+        }
+
         var originalScale = cellObject.transform.localScale;
         var originalColor = cellObject.GetComponent<Renderer>().material.color;
         WorldObjectUtility.SetColor(cellObject, Color.white);
         cellObject.transform.localScale = originalScale + new Vector3(0.08F, 0.04F, 0.08F);
         yield return new WaitForSeconds(0.07F);
+
+        if (cellObject == null)
+        {
+            yield break;
+        }
+
         WorldObjectUtility.SetColor(cellObject, originalColor);
         cellObject.transform.localScale = originalScale;
     }
