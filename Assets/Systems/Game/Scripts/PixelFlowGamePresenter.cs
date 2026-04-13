@@ -9,7 +9,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private const float BasePigSpeed = 15F;
     private const float ConveyorPadding = 1F;
     private const float LaunchSpacing = 1.1F;
-    private const float GuaranteeSpeedMultiplier = 1.8F;
+    private const float GuaranteeSpeedMultiplier = 2F;
     private const float GuaranteeRampSeconds = 1.1F;
 
     private readonly IPixelGridView gridView;
