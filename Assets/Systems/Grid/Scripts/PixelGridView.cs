@@ -7,6 +7,7 @@ using UnityEngine;
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
     private const float WorldCellSize = 1F;
+    private const float CellVisualScale = 0.9F;
     private const float AliveCellHeight = 0.16F;
     private const float DeadCellHeight = 0.05F;
 
@@ -73,7 +74,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
         cellGap = 0F;
         cellSize = WorldCellSize;
-        renderedCellSize = cellSize;
+        renderedCellSize = cellSize * CellVisualScale;
         boardSize = new Vector2(
             this.width * cellSize + (this.width - 1) * cellGap,
             this.height * cellSize + (this.height - 1) * cellGap);
@@ -146,12 +147,15 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         StartCoroutine(ShotRoutine(shotObject, from, to, onImpact));
     }
 
-    public void PlayCellHit(int x, int y)
+    public void PlayCellHit(int x, int y, Action onComplete)
     {
         if (cellObjects.TryGetValue(GetCellKey(x, y), out var cellObject))
         {
-            StartCoroutine(CellHitRoutine(cellObject));
+            StartCoroutine(CellHitRoutine(cellObject, onComplete));
+            return;
         }
+
+        onComplete?.Invoke();
     }
 
     public void SetConveyorCapacity(int remainingCapacity, int totalCapacity)
@@ -240,26 +244,19 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         Destroy(shotObject);
     }
 
-    private IEnumerator CellHitRoutine(GameObject cellObject)
+    private IEnumerator CellHitRoutine(GameObject cellObject, Action onComplete)
     {
         if (cellObject == null)
         {
+            onComplete?.Invoke();
             yield break;
         }
 
         var originalScale = cellObject.transform.localScale;
-        var originalColor = cellObject.GetComponent<Renderer>().material.color;
-        WorldObjectUtility.SetColor(cellObject, Color.white);
-        cellObject.transform.localScale = originalScale + new Vector3(0.08F, 0.04F, 0.08F);
-        yield return new WaitForSeconds(0.07F);
+        cellObject.transform.localScale = new Vector3(originalScale.x * 1.5F, originalScale.y * 1.5F, originalScale.z * 1.5F);
+        yield return new WaitForSeconds(0.11F);
 
-        if (cellObject == null)
-        {
-            yield break;
-        }
-
-        WorldObjectUtility.SetColor(cellObject, originalColor);
-        cellObject.transform.localScale = originalScale;
+        onComplete?.Invoke();
     }
 
     private Vector3 GetCellLocalPosition(int x, int y)

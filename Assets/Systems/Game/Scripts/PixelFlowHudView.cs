@@ -16,50 +16,15 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
     {
         transform.SetParent(parent, false);
         transform.position = new Vector3(0F, 0F, 0F);
-
-        statusText = WorldObjectUtility.CreateWorldText(
-            "Status",
-            transform,
-            new Vector3(-9.5F, 0.4F, 12.9F),
-            "Launch pigs from the front of each line",
-            56,
-            Color.white,
-            TextAnchor.MiddleLeft,
-            0.08F);
-
-        startSolvableText = WorldObjectUtility.CreateWorldText(
-            "StartSolvable",
-            transform,
-            new Vector3(-0.8F, 0.4F, 12.9F),
-            "Start: Solvable",
-            42,
-            new Color32(114, 255, 167, 255),
-            TextAnchor.MiddleCenter,
-            0.065F);
-
-        unlosableText = WorldObjectUtility.CreateWorldText(
-            "Unlosable",
-            transform,
-            new Vector3(4.2F, 0.4F, 12.9F),
-            "Now: Risky",
-            42,
-            new Color32(194, 203, 221, 255),
-            TextAnchor.MiddleCenter,
-            0.065F);
-
-        levelText = WorldObjectUtility.CreateWorldText(
-            "Level",
-            transform,
-            new Vector3(9.2F, 0.4F, 12.9F),
-            "Level 1",
-            56,
-            Color.white,
-            TextAnchor.MiddleRight,
-            0.08F);
     }
 
     public void SetStatus(string text, Color color)
     {
+        if (statusText == null)
+        {
+            return;
+        }
+
         statusText.text = text;
         statusText.color = color;
         statusText.GetComponent<MeshRenderer>().material.color = color;

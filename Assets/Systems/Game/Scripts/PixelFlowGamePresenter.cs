@@ -281,10 +281,15 @@ public sealed class PixelFlowGamePresenter : IDisposable
                 pig.Color,
                 () =>
                 {
-                    gridView.RenderCell(hitResult.X, hitResult.Y, PixelPigColor.None, false);
-                    gridView.PlayCellHit(hitResult.X, hitResult.Y);
-                    pendingShots = Mathf.Max(0, pendingShots - 1);
-                    CheckCompletion();
+                    gridView.PlayCellHit(
+                        hitResult.X,
+                        hitResult.Y,
+                        () =>
+                        {
+                            gridView.RenderCell(hitResult.X, hitResult.Y, PixelPigColor.None, false);
+                            pendingShots = Mathf.Max(0, pendingShots - 1);
+                            CheckCompletion();
+                        });
                 });
 
             if (pig.AmmoRemaining > 0)
