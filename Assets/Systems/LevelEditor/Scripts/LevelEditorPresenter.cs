@@ -164,13 +164,18 @@ public sealed class LevelEditorPresenter : IDisposable
 
     private void OnSaveRequested()
     {
-        saveLoad.Save(workingLevel);
+        saveLoad.Save(workingLevel.id, workingLevel);
         applyLevel?.Invoke(Clone(workingLevel));
     }
 
     private void OnLoadRequested()
     {
-        var savedLevel = saveLoad.Load();
+        if (workingLevel == null)
+        {
+            return;
+        }
+
+        var savedLevel = saveLoad.Load(workingLevel.id);
 
         if (savedLevel == null)
         {
@@ -238,6 +243,7 @@ public sealed class LevelEditorPresenter : IDisposable
 
         return new PixelFlowLevelData
         {
+            id = source.id,
             width = FixedBoardSize,
             height = FixedBoardSize,
             waitingSlotCount = source.waitingSlotCount,
@@ -336,14 +342,13 @@ public sealed class LevelEditorPresenter : IDisposable
             return;
         }
 
-        if (workingLevel.pigLines != null && workingLevel.pigLines.Length >= 2)
+        if (workingLevel.pigLines != null && workingLevel.pigLines.Length > 0)
         {
             return;
         }
 
         workingLevel.pigLines = new[]
         {
-            new PigLineData(),
             new PigLineData()
         };
     }

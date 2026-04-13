@@ -4,7 +4,6 @@ using UnityEngine;
 
 public sealed class PixelFlowGamePresenter : IDisposable
 {
-    private const int PigLineCount = 2;
     private const int ConveyorCapacity = 5;
     private const float BasePigSpeed = 15F;
     private const float ConveyorPadding = 1F;
@@ -98,7 +97,11 @@ public sealed class PixelFlowGamePresenter : IDisposable
         }
 
         pigLines.Clear();
-        for (var i = 0; i < PigLineCount; i++)
+        var lineCount = levelData != null && levelData.pigLines != null && levelData.pigLines.Length > 0
+            ? levelData.pigLines.Length
+            : 1;
+
+        for (var i = 0; i < lineCount; i++)
         {
             pigLines.Add(new List<PigModel>());
         }
@@ -107,6 +110,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         GeneratePigLinesFromPuzzle();
         RenderWaitingArea();
         UpdateConveyorCapacityDisplay();
+        hudView.SetStatus(string.Empty, Color.white);
         hudView.SetStatus("Launch pigs from the front of each line", Color.white);
         hudView.SetStartSolvableState(startSolvable);
         hudView.SetUnlosableState(false);
@@ -210,7 +214,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
             {
                 levelFailed = true;
                 waitingSlotsView.PlayOverflowWarning();
-                hudView.SetStatus("Level failed: no free waiting slot", new Color32(255, 122, 122, 255));
+                hudView.SetStatus("Level Failed", new Color32(255, 122, 122, 255));
             }
 
             RemoveActivePigAt(i, false);
@@ -322,7 +326,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         }
 
         levelCompleted = true;
-        hudView.SetStatus("Level cleared", new Color32(114, 255, 167, 255));
+        hudView.SetStatus("Level Completed", new Color32(114, 255, 167, 255));
         LevelCompleted?.Invoke();
     }
 

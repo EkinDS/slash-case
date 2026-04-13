@@ -185,7 +185,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         conveyorCapacityText = WorldObjectUtility.CreateWorldText(
             "ConveyorCapacity",
             transform,
-            new Vector3(-boardSize.x * 0.5F - 1F, 0.45F, -boardSize.y * 0.5F - 1F),
+            new Vector3(-boardSize.x * 0.5F - 1F, -0.14F, -boardSize.y * 0.5F - 1F),
             "5/5",
             72,
             Color.black,

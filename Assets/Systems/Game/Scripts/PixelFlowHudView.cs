@@ -16,11 +16,29 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
     {
         transform.SetParent(parent, false);
         transform.position = new Vector3(0F, 0F, 0F);
+
+        statusText = WorldObjectUtility.CreateWorldText(
+            "StatusText",
+            transform,
+            new Vector3(0F, 0.25F, 17.4F),
+            string.Empty,
+            96,
+            Color.white,
+            TextAnchor.MiddleCenter,
+            0.16F);
+        statusText.transform.localRotation = Quaternion.Euler(90F, 0F, 0F);
     }
 
     public void SetStatus(string text, Color color)
     {
         if (statusText == null)
+        {
+            return;
+        }
+
+        if (!string.Equals(text, "Level Completed", StringComparison.Ordinal) &&
+            !string.Equals(text, "Level Failed", StringComparison.Ordinal) &&
+            !string.IsNullOrEmpty(text))
         {
             return;
         }

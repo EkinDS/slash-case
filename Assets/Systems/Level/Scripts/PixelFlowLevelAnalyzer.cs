@@ -29,7 +29,8 @@ public static class PixelFlowLevelAnalyzer
     {
         var state = CreateState(cells, pigLines, slots, activePigs, slotCapacity);
         var memo = new Dictionary<string, bool>();
-        return IsUnlosable(state, memo);
+        var visiting = new HashSet<string>();
+        return IsUnlosable(state, memo, visiting);
     }
 
     public static bool HasMinimumPigCount(PixelFlowLevelData levelData)
@@ -111,7 +112,7 @@ public static class PixelFlowLevelAnalyzer
         return false;
     }
 
-    private static bool IsUnlosable(AnalysisState state, Dictionary<string, bool> memo)
+    private static bool IsUnlosable(AnalysisState state, Dictionary<string, bool> memo, HashSet<string> visiting)
     {
         if (state.RemainingCells == 0)
         {
@@ -125,15 +126,22 @@ public static class PixelFlowLevelAnalyzer
             return cached;
         }
 
+        if (!visiting.Add(key))
+        {
+            return false;
+        }
+
         if (state.ActivePigs.Count > 0)
         {
             if (!TryResolveNextActivePig(state, out var nextState))
             {
+                visiting.Remove(key);
                 memo[key] = false;
                 return false;
             }
 
-            var result = IsUnlosable(nextState, memo);
+            var result = IsUnlosable(nextState, memo, visiting);
+            visiting.Remove(key);
             memo[key] = result;
             return result;
         }
@@ -142,19 +150,22 @@ public static class PixelFlowLevelAnalyzer
 
         if (moves.Count == 0)
         {
+            visiting.Remove(key);
             memo[key] = false;
             return false;
         }
 
         for (var i = 0; i < moves.Count; i++)
         {
-            if (!TryApplyMove(state, moves[i], out var nextState) || !IsUnlosable(nextState, memo))
+            if (!TryApplyMove(state, moves[i], out var nextState) || !IsUnlosable(nextState, memo, visiting))
             {
+                visiting.Remove(key);
                 memo[key] = false;
                 return false;
             }
         }
 
+        visiting.Remove(key);
         memo[key] = true;
         return true;
     }

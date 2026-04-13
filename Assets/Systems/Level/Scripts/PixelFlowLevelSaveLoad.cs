@@ -2,7 +2,7 @@ using UnityEngine;
 
 public sealed class PixelFlowLevelSaveLoad
 {
-    private const string LevelDataKey = "PixelFlow.CustomLevel";
+    private const string LevelDataKeyPrefix = "PixelFlow.Level.";
 
     public void Save(PixelFlowLevelData levelData)
     {
@@ -11,30 +11,67 @@ public sealed class PixelFlowLevelSaveLoad
             return;
         }
 
-        PlayerPrefs.SetString(LevelDataKey, JsonUtility.ToJson(levelData));
+        Save(levelData.id, levelData);
+    }
+
+    public void Save(int levelId, PixelFlowLevelData levelData)
+    {
+        if (levelData == null || levelId <= 0)
+        {
+            return;
+        }
+
+        levelData.id = levelId;
+        PlayerPrefs.SetString(BuildKey(levelId), JsonUtility.ToJson(levelData));
         PlayerPrefs.Save();
     }
 
     public PixelFlowLevelData Load()
     {
-        if (!PlayerPrefs.HasKey(LevelDataKey))
+        return null;
+    }
+
+    public PixelFlowLevelData Load(int levelId)
+    {
+        if (levelId <= 0 || !PlayerPrefs.HasKey(BuildKey(levelId)))
         {
             return null;
         }
 
-        var serializedLevel = PlayerPrefs.GetString(LevelDataKey);
+        var serializedLevel = PlayerPrefs.GetString(BuildKey(levelId));
 
         if (string.IsNullOrWhiteSpace(serializedLevel))
         {
             return null;
         }
 
-        return JsonUtility.FromJson<PixelFlowLevelData>(serializedLevel);
+        var level = JsonUtility.FromJson<PixelFlowLevelData>(serializedLevel);
+
+        if (level != null && level.id <= 0)
+        {
+            level.id = levelId;
+        }
+
+        return level;
     }
 
     public void Clear()
     {
-        PlayerPrefs.DeleteKey(LevelDataKey);
+    }
+
+    public void Clear(int levelId)
+    {
+        if (levelId <= 0)
+        {
+            return;
+        }
+
+        PlayerPrefs.DeleteKey(BuildKey(levelId));
         PlayerPrefs.Save();
+    }
+
+    private static string BuildKey(int levelId)
+    {
+        return $"{LevelDataKeyPrefix}{levelId}";
     }
 }

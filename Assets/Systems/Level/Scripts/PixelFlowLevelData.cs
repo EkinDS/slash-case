@@ -3,6 +3,7 @@ using System;
 [Serializable]
 public class PixelFlowLevelData
 {
+    public int id = 1;
     public int width = 6;
     public int height = 6;
     public int waitingSlotCount = 5;

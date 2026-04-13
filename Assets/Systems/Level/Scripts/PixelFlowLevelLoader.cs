@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using UnityEngine;
 
@@ -14,7 +15,7 @@ public static class PixelFlowLevelLoader
             return levels;
         }
 
-        foreach (var asset in assets.OrderBy(asset => asset.name))
+        foreach (var asset in assets)
         {
             var level = Load(asset);
 
@@ -24,7 +25,10 @@ public static class PixelFlowLevelLoader
             }
         }
 
-        return levels;
+        return levels
+            .OrderBy(level => level.id)
+            .ThenBy(level => level.width)
+            .ToList();
     }
 
     public static PixelFlowLevelData Load(TextAsset levelAsset)
@@ -34,6 +38,56 @@ public static class PixelFlowLevelLoader
             return null;
         }
 
-        return JsonUtility.FromJson<PixelFlowLevelData>(levelAsset.text);
+        var level = JsonUtility.FromJson<PixelFlowLevelData>(levelAsset.text);
+
+        if (level == null)
+        {
+            return null;
+        }
+
+        if (level.id <= 0)
+        {
+            level.id = ParseLevelId(levelAsset.name);
+        }
+
+        if (level.id <= 0)
+        {
+            level.id = 1;
+        }
+
+        return level;
+    }
+
+    public static PixelFlowLevelData LoadFromResources(string resourcePath, int levelId)
+    {
+        if (levelId <= 0)
+        {
+            return null;
+        }
+
+        var allLevels = LoadAllFromResources(resourcePath);
+
+        for (var i = 0; i < allLevels.Count; i++)
+        {
+            if (allLevels[i] != null && allLevels[i].id == levelId)
+            {
+                return allLevels[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static int ParseLevelId(string assetName)
+    {
+        if (string.IsNullOrWhiteSpace(assetName))
+        {
+            return 0;
+        }
+
+        var digits = new string(assetName.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedId)
+            ? parsedId
+            : 0;
     }
 }

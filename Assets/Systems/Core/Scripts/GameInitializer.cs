@@ -122,7 +122,7 @@ public class GameInitializer : MonoBehaviour
         currentLevelData = CloneLevel(levelData ?? GetCurrentLoadedLevel());
         gamePresenter.LoadLevel(currentLevelData);
         gamePresenter.SetEditorOpen(levelEditorView != null && levelEditorView.gameObject.activeSelf);
-        hudView?.SetLevelLabel($"Level {currentLevelIndex + 1}");
+        hudView?.SetLevelLabel($"Level {currentLevelData.id}");
 
         if (updateEditor)
         {
@@ -162,7 +162,10 @@ public class GameInitializer : MonoBehaviour
     {
         if (loadedLevels == null || loadedLevels.Count == 0)
         {
-            return new PixelFlowLevelData();
+            return new PixelFlowLevelData
+            {
+                id = currentLevelIndex + 1
+            };
         }
 
         if (currentLevelIndex < 0 || currentLevelIndex >= loadedLevels.Count)
@@ -170,7 +173,9 @@ public class GameInitializer : MonoBehaviour
             currentLevelIndex = 0;
         }
 
-        return CloneLevel(loadedLevels[currentLevelIndex]);
+        var baseLevel = CloneLevel(loadedLevels[currentLevelIndex]);
+        var savedLevel = levelSaveLoad.Load(baseLevel.id);
+        return CloneLevel(savedLevel ?? baseLevel);
     }
 
     private System.Collections.IEnumerator AdvanceToNextLevelRoutine()

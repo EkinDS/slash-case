@@ -42,12 +42,12 @@ public sealed class PigView : MonoBehaviour, IPigView
         ammoText = WorldObjectUtility.CreateWorldText(
             "Ammo",
             cachedTransform,
-            new Vector3(0F, 2.35F, 0F),
+            new Vector3(0F, 1.96F, 0F),
             "0",
             96,
             Color.black,
             TextAnchor.MiddleCenter,
-            0.18F);
+            0.144F);
         ammoText.text = "0";
         cachedTransform.localScale = LaunchEndScale;
         OrientAmmoText();

@@ -6,10 +6,11 @@ using UnityEngine;
 
 public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 {
-    private const int PigLineCount = 2;
     private const float QueuedPigScale = 1.44F;
     private const float QueuedPigSpacing = 2.15F;
     private const float QueuedPigFrontOffset = 1.3F;
+    private const float LineSpacing = 4.5F;
+    private const float LineDepthOffset = -5.6F;
 
     private readonly List<GameObject> slotObjects = new List<GameObject>();
     private readonly List<TextMeshPro> slotTexts = new List<TextMeshPro>();
@@ -26,15 +27,6 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         slotRoot = new GameObject("WaitingSlots").transform;
         slotRoot.SetParent(parent, false);
         slotRoot.localPosition = new Vector3(0F, 0F, -14.8F);
-
-        for (var i = 0; i < PigLineCount; i++)
-        {
-            var lineRoot = new GameObject($"PigLine_{i}").transform;
-            lineRoot.SetParent(slotRoot, false);
-            lineRoot.localPosition = new Vector3(-2.25F + i * 4.5F, 0F, -5.6F);
-            lineRoots.Add(lineRoot);
-            linePigObjects.Add(new List<GameObject>());
-        }
     }
 
     public void BuildSlots(int slotCount)
@@ -72,7 +64,7 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
                 56,
                 Color.black,
                 TextAnchor.MiddleCenter,
-                0.098F);
+                0.0882F);
             text.transform.localRotation = Quaternion.Euler(90F, 0F, 0F);
 
             slotObjects.Add(slotObject);
@@ -129,6 +121,8 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 
     private void RenderPigLines(IReadOnlyList<IReadOnlyList<QueuedPigState>> lineStates)
     {
+        EnsureLineRoots(lineStates != null ? lineStates.Count : 0);
+
         for (var lineIndex = 0; lineIndex < lineRoots.Count; lineIndex++)
         {
             var pigObjects = linePigObjects[lineIndex];
@@ -177,11 +171,33 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
                     56,
                     Color.black,
                     TextAnchor.MiddleCenter,
-                    0.14F);
+                    0.126F);
                 text.transform.localRotation = Quaternion.Euler(90F, 0F, 0F);
 
                 pigObjects.Add(pigObject);
             }
+        }
+    }
+
+    private void EnsureLineRoots(int lineCount)
+    {
+        var safeLineCount = Mathf.Max(1, lineCount);
+
+        while (lineRoots.Count < safeLineCount)
+        {
+            var lineIndex = lineRoots.Count;
+            var lineRoot = new GameObject($"PigLine_{lineIndex}").transform;
+            lineRoot.SetParent(slotRoot, false);
+            lineRoots.Add(lineRoot);
+            linePigObjects.Add(new List<GameObject>());
+        }
+
+        var totalWidth = (safeLineCount - 1) * LineSpacing;
+
+        for (var lineIndex = 0; lineIndex < lineRoots.Count; lineIndex++)
+        {
+            lineRoots[lineIndex].localPosition = new Vector3(-totalWidth * 0.5F + lineIndex * LineSpacing, 0F, LineDepthOffset);
+            lineRoots[lineIndex].gameObject.SetActive(lineIndex < safeLineCount);
         }
     }
 
