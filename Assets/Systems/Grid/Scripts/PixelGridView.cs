@@ -7,10 +7,7 @@ using UnityEngine;
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
     private const float WorldCellSize = 1F;
-    private const float CellVisualScale = 0.9F;
-    private const float AliveCellHeight = 0.16F;
-    private const float DeadCellHeight = 0.05F;
-
+    private const float CellVisualScale = 0.85F;
     private readonly Dictionary<int, GameObject> cellObjects = new Dictionary<int, GameObject>();
     private readonly List<GameObject> conveyorObjects = new List<GameObject>();
 
@@ -80,15 +77,6 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
             this.height * cellSize + (this.height - 1) * cellGap);
         boardCenter = new Vector3(0F, 0F, 0F);
 
-        var boardBase = WorldObjectUtility.CreatePrimitive(
-            "BoardBase",
-            PrimitiveType.Cube,
-            boardRoot,
-            new Vector3(0F, -0.18F, 0F),
-            new Vector3(boardSize.x + 0.6F, 0.25F, boardSize.y + 0.6F),
-            WorldMaterialRole.BoardBase);
-        conveyorObjects.Add(boardBase);
-
         BuildConveyorVisuals();
 
         for (var y = 0; y < this.height; y++)
@@ -100,7 +88,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
                     PrimitiveType.Cube,
                     boardRoot,
                     GetCellLocalPosition(x, y),
-                    new Vector3(renderedCellSize, AliveCellHeight, renderedCellSize),
+                    new Vector3(renderedCellSize, renderedCellSize, renderedCellSize),
                     new Color32(44, 52, 74, 255));
 
                 var relay = cellObject.AddComponent<ClickRelay>();
@@ -119,9 +107,16 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
             return;
         }
 
-        WorldObjectUtility.SetColor(cellObject, alive ? color.ToUnityColor() : new Color32(44, 52, 74, 180));
-        cellObject.transform.localScale = new Vector3(renderedCellSize, alive ? AliveCellHeight : DeadCellHeight, renderedCellSize);
-        cellObject.transform.localPosition = GetCellLocalPosition(x, y) + new Vector3(0F, alive ? 0F : -0.055F, 0F);
+        var renderer = cellObject.GetComponent<Renderer>();
+
+        if (renderer != null)
+        {
+            renderer.enabled = alive;
+        }
+
+        WorldObjectUtility.SetColor(cellObject, color.ToUnityColor());
+        cellObject.transform.localScale = new Vector3(renderedCellSize, renderedCellSize, renderedCellSize);
+        cellObject.transform.localPosition = GetCellLocalPosition(x, y);
     }
 
     public Vector2 GetCellCenter(int x, int y)
@@ -253,8 +248,45 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         }
 
         var originalScale = cellObject.transform.localScale;
-        cellObject.transform.localScale = new Vector3(originalScale.x * 1.5F, originalScale.y * 1.5F, originalScale.z * 1.5F);
-        yield return new WaitForSeconds(0.11F);
+        var originalPosition = cellObject.transform.localPosition;
+        var originalRotation = cellObject.transform.localRotation;
+        const float duration = 0.15F;
+        const float targetScaleMultiplier = 1.5F;
+        const float shakeAmplitude = 0.08F;
+        const float shakeFrequency = 26F;
+        const float leftTiltDegrees = 5F;
+        const float rightTiltDegrees = 10F;
+        var elapsed = 0F;
+
+        while (elapsed < duration)
+        {
+            if (cellObject == null)
+            {
+                onComplete?.Invoke();
+                yield break;
+            }
+
+            elapsed += Time.deltaTime;
+            var t = Mathf.Clamp01(elapsed / duration);
+            var scaleMultiplier = Mathf.Lerp(1F, targetScaleMultiplier, t);
+            var shakeOffset = Mathf.Sin(t * Mathf.PI * shakeFrequency) * shakeAmplitude * (1F - t * 0.15F);
+
+            cellObject.transform.localScale = new Vector3(
+                originalScale.x * scaleMultiplier,
+                originalScale.y * scaleMultiplier,
+                originalScale.z * scaleMultiplier);
+            cellObject.transform.localPosition = originalPosition + new Vector3(0F, 0F, shakeOffset);
+            var tiltDegrees = t < 0.5F
+                ? Mathf.Lerp(0F, leftTiltDegrees, t / 0.5F)
+                : Mathf.Lerp(leftTiltDegrees, -rightTiltDegrees, (t - 0.5F) / 0.5F);
+            cellObject.transform.localRotation = originalRotation * Quaternion.Euler(0F, 0F, tiltDegrees);
+            yield return null;
+        }
+
+        if (cellObject != null)
+        {
+            cellObject.transform.localRotation = originalRotation;
+        }
 
         onComplete?.Invoke();
     }
