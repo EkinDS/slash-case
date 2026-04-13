@@ -5,7 +5,8 @@ using UnityEngine;
 public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
 {
     private TextMeshPro statusText;
-    private TextMeshPro guaranteeText;
+    private TextMeshPro startSolvableText;
+    private TextMeshPro unlosableText;
     private TextMeshPro levelText;
 
     public event Action RestartRequested;
@@ -26,16 +27,25 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
             TextAnchor.MiddleLeft,
             0.08F);
 
-        guaranteeText = WorldObjectUtility.CreateWorldText(
-            "Guarantee",
+        startSolvableText = WorldObjectUtility.CreateWorldText(
+            "StartSolvable",
             transform,
-            new Vector3(0F, 0.4F, 12.9F),
-            "Guaranteed Finish",
-            54,
-            new Color32(255, 224, 107, 255),
+            new Vector3(-0.8F, 0.4F, 12.9F),
+            "Start: Solvable",
+            42,
+            new Color32(114, 255, 167, 255),
             TextAnchor.MiddleCenter,
-            0.08F);
-        guaranteeText.gameObject.SetActive(false);
+            0.065F);
+
+        unlosableText = WorldObjectUtility.CreateWorldText(
+            "Unlosable",
+            transform,
+            new Vector3(4.2F, 0.4F, 12.9F),
+            "Now: Risky",
+            42,
+            new Color32(194, 203, 221, 255),
+            TextAnchor.MiddleCenter,
+            0.065F);
 
         levelText = WorldObjectUtility.CreateWorldText(
             "Level",
@@ -55,9 +65,30 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
         statusText.GetComponent<MeshRenderer>().material.color = color;
     }
 
-    public void SetGuaranteeVisible(bool visible)
+    public void SetStartSolvableState(bool solvable)
     {
-        guaranteeText.gameObject.SetActive(visible);
+        if (startSolvableText == null)
+        {
+            return;
+        }
+
+        var color = solvable ? new Color32(114, 255, 167, 255) : new Color32(255, 122, 122, 255);
+        startSolvableText.text = solvable ? "Start: Solvable" : "Start: Unsolvable";
+        startSolvableText.color = color;
+        startSolvableText.GetComponent<MeshRenderer>().material.color = color;
+    }
+
+    public void SetUnlosableState(bool unlosable)
+    {
+        if (unlosableText == null)
+        {
+            return;
+        }
+
+        var color = unlosable ? new Color32(255, 224, 107, 255) : new Color32(194, 203, 221, 255);
+        unlosableText.text = unlosable ? "Now: Unlosable" : "Now: Risky";
+        unlosableText.color = color;
+        unlosableText.GetComponent<MeshRenderer>().material.color = color;
     }
 
     public void SetEditorButtonLabel(string label)

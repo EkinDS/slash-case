@@ -24,11 +24,13 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private readonly List<IPigView> activePigViews = new List<IPigView>();
     private readonly List<PigModel> slotAssignments = new List<PigModel>();
 
+    private PixelFlowLevelData currentLevelData;
     private bool guaranteedMode;
     private bool levelFailed;
     private bool levelCompleted;
     private bool editorOpen;
     private bool hasLaunchedPig;
+    private bool startSolvable;
     private float currentSpeedMultiplier = 1F;
     private float guaranteeRampProgress;
     private int nextPigId;
@@ -61,6 +63,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     public void LoadLevel(PixelFlowLevelData levelData)
     {
         ClearPigs();
+        currentLevelData = levelData;
 
         guaranteedMode = false;
         levelFailed = false;
@@ -68,6 +71,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
         currentSpeedMultiplier = 1F;
         guaranteeRampProgress = 0F;
         hasLaunchedPig = false;
+        startSolvable = PixelFlowLevelAnalyzer.IsStartSolvable(levelData);
         pendingShots = 0;
 
         gridModel = new PixelGridModel(levelData);
@@ -104,7 +108,8 @@ public sealed class PixelFlowGamePresenter : IDisposable
         RenderWaitingArea();
         UpdateConveyorCapacityDisplay();
         hudView.SetStatus("Launch pigs from the front of each line", Color.white);
-        hudView.SetGuaranteeVisible(false);
+        hudView.SetStartSolvableState(startSolvable);
+        hudView.SetUnlosableState(false);
         hudView.SetEditorButtonLabel(editorOpen ? "Close" : "Editor");
     }
 
@@ -151,8 +156,8 @@ public sealed class PixelFlowGamePresenter : IDisposable
         if (!guaranteedMode && IsGuaranteedFinish())
         {
             guaranteedMode = true;
-            hudView.SetGuaranteeVisible(true);
-            hudView.SetStatus("Guaranteed finish: all pigs accelerating", new Color32(255, 224, 107, 255));
+            hudView.SetUnlosableState(true);
+            hudView.SetStatus("Unlosable state: remaining pigs auto-resolve", new Color32(255, 224, 107, 255));
         }
 
         if (!guaranteedMode)
@@ -312,51 +317,16 @@ public sealed class PixelFlowGamePresenter : IDisposable
 
     private bool IsGuaranteedFinish()
     {
-        if (gridModel.RemainingPixelCount <= 0 || !hasLaunchedPig)
+        if (gridModel.RemainingPixelCount <= 0 || !hasLaunchedPig || activePigs.Count > 0 || pendingShots > 0)
         {
             return false;
         }
 
-        var ammoByColor = new Dictionary<PixelPigColor, int>();
-
-        foreach (PixelPigColor color in Enum.GetValues(typeof(PixelPigColor)))
-        {
-            if (color != PixelPigColor.None)
-            {
-                ammoByColor[color] = 0;
-            }
-        }
-
-        for (var lineIndex = 0; lineIndex < pigLines.Count; lineIndex++)
-        {
-            for (var pigIndex = 0; pigIndex < pigLines[lineIndex].Count; pigIndex++)
-            {
-                ammoByColor[pigLines[lineIndex][pigIndex].Color] += pigLines[lineIndex][pigIndex].AmmoRemaining;
-            }
-        }
-
-        for (var i = 0; i < slotAssignments.Count; i++)
-        {
-            if (slotAssignments[i] != null)
-            {
-                ammoByColor[slotAssignments[i].Color] += slotAssignments[i].AmmoRemaining;
-            }
-        }
-
-        for (var i = 0; i < activePigs.Count; i++)
-        {
-            ammoByColor[activePigs[i].Color] += activePigs[i].AmmoRemaining;
-        }
-
-        foreach (var pair in ammoByColor)
-        {
-            if (pair.Value < gridModel.GetRemainingCount(pair.Key))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return PixelFlowLevelAnalyzer.IsCurrentStateUnlosable(
+            BuildCurrentCells(),
+            BuildCurrentPigLines(),
+            BuildCurrentSlots(),
+            slotAssignments.Count);
     }
 
     private void OnSlotClicked(int slotIndex)
@@ -552,19 +522,31 @@ public sealed class PixelFlowGamePresenter : IDisposable
 
     private void GeneratePigLinesFromPuzzle()
     {
-        var generatedSequence = PigLineGenerator.GenerateSolvableSequence(new PixelFlowLevelData
-        {
-            cells = BuildCurrentCells(),
-            width = gridModel.Width,
-            height = gridModel.Height,
-            waitingSlotCount = slotAssignments.Count
-        });
+        var configuredPigLines = currentLevelData != null ? currentLevelData.pigLines : null;
 
-        for (var i = 0; i < generatedSequence.Count; i++)
+        if (configuredPigLines != null && configuredPigLines.Length > 0)
         {
-            var sourcePig = generatedSequence[i];
-            var lineIndex = i % PigLineCount;
-            pigLines[lineIndex].Add(new PigModel(nextPigId++, sourcePig.color, Mathf.Max(1, sourcePig.ammo)));
+            for (var lineIndex = 0; lineIndex < configuredPigLines.Length && lineIndex < pigLines.Count; lineIndex++)
+            {
+                var lineData = configuredPigLines[lineIndex];
+
+                if (lineData?.pigs == null)
+                {
+                    continue;
+                }
+
+                for (var pigIndex = 0; pigIndex < lineData.pigs.Length; pigIndex++)
+                {
+                    var sourcePig = lineData.pigs[pigIndex];
+
+                    if (sourcePig == null || sourcePig.color == PixelPigColor.None || sourcePig.ammo <= 0)
+                    {
+                        continue;
+                    }
+
+                    pigLines[lineIndex].Add(new PigModel(nextPigId++, sourcePig.color, sourcePig.ammo));
+                }
+            }
         }
     }
 
@@ -586,6 +568,39 @@ public sealed class PixelFlowGamePresenter : IDisposable
         }
 
         return cells.ToArray();
+    }
+
+    private IReadOnlyList<IReadOnlyList<PigSpawnData>> BuildCurrentPigLines()
+    {
+        var lines = new List<IReadOnlyList<PigSpawnData>>(pigLines.Count);
+
+        for (var lineIndex = 0; lineIndex < pigLines.Count; lineIndex++)
+        {
+            var pigs = new List<PigSpawnData>(pigLines[lineIndex].Count);
+
+            for (var pigIndex = 0; pigIndex < pigLines[lineIndex].Count; pigIndex++)
+            {
+                var pig = pigLines[lineIndex][pigIndex];
+                pigs.Add(new PigSpawnData(pig.Color, pig.AmmoRemaining));
+            }
+
+            lines.Add(pigs);
+        }
+
+        return lines;
+    }
+
+    private IReadOnlyList<PigSpawnData> BuildCurrentSlots()
+    {
+        var slots = new List<PigSpawnData>(slotAssignments.Count);
+
+        for (var i = 0; i < slotAssignments.Count; i++)
+        {
+            var pig = slotAssignments[i];
+            slots.Add(pig != null ? new PigSpawnData(pig.Color, pig.AmmoRemaining) : null);
+        }
+
+        return slots;
     }
 
     private bool CanLaunchMorePigs()

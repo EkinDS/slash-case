@@ -7,7 +7,8 @@ public interface IPixelFlowHudView
     event Action EditorToggleRequested;
 
     void SetStatus(string text, Color color);
-    void SetGuaranteeVisible(bool visible);
+    void SetStartSolvableState(bool solvable);
+    void SetUnlosableState(bool unlosable);
     void SetEditorButtonLabel(string label);
     void SetLevelLabel(string text);
 }

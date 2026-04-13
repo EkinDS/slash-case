@@ -5,12 +5,73 @@ using System.Text;
 public static class PigLineGenerator
 {
     private const int FixedBoardSize = 20;
+    private const int MinimumPigCount = 12;
+
+    public static bool IsUniversallySolvable(PixelFlowLevelData levelData)
+    {
+        var grid = BuildGrid(levelData);
+        var memo = new Dictionary<string, bool>();
+        return IsUniversallySolvable(grid, memo);
+    }
+
+    public static bool IsSolvable(PixelFlowLevelData levelData)
+    {
+        var grid = BuildGrid(levelData);
+        var memo = new Dictionary<string, List<PigSpawnData>>();
+        return TrySolve(grid, memo, out _);
+    }
+
+    public static List<PigSpawnData> GenerateUniversalLoadout(PixelFlowLevelData levelData)
+    {
+        var grid = BuildGrid(levelData);
+        return EnsureMinimumPigCount(BuildFallbackSequence(grid));
+    }
 
     public static List<PigSpawnData> GenerateSolvableSequence(PixelFlowLevelData levelData)
     {
         var grid = BuildGrid(levelData);
         var memo = new Dictionary<string, List<PigSpawnData>>();
-        return TrySolve(grid, memo, out var sequence) ? sequence : BuildFallbackSequence(grid);
+        var sequence = TrySolve(grid, memo, out var solvedSequence) ? solvedSequence : BuildFallbackSequence(grid);
+        return EnsureMinimumPigCount(sequence);
+    }
+
+    private static bool IsUniversallySolvable(PixelPigColor[,] grid, Dictionary<string, bool> memo)
+    {
+        if (!HasAnyCells(grid))
+        {
+            return true;
+        }
+
+        var key = BuildKey(grid);
+
+        if (memo.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var candidates = GetCandidateColors(grid);
+
+        if (candidates.Count == 0)
+        {
+            memo[key] = false;
+            return false;
+        }
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var candidate = candidates[i];
+            var nextGrid = CloneGrid(grid);
+            StripExposedColor(nextGrid, candidate.color);
+
+            if (!IsUniversallySolvable(nextGrid, memo))
+            {
+                memo[key] = false;
+                return false;
+            }
+        }
+
+        memo[key] = true;
+        return true;
     }
 
     private static bool TrySolve(PixelPigColor[,] grid, Dictionary<string, List<PigSpawnData>> memo, out List<PigSpawnData> sequence)
@@ -287,5 +348,62 @@ public static class PigLineGenerator
         }
 
         return fallback;
+    }
+
+    private static List<PigSpawnData> EnsureMinimumPigCount(List<PigSpawnData> source)
+    {
+        var result = new List<PigSpawnData>();
+
+        if (source != null)
+        {
+            for (var i = 0; i < source.Count; i++)
+            {
+                var pig = source[i];
+                result.Add(new PigSpawnData(pig.color, pig.ammo));
+            }
+        }
+
+        while (result.Count < MinimumPigCount)
+        {
+            var splitIndex = FindBestSplitIndex(result);
+
+            if (splitIndex < 0)
+            {
+                break;
+            }
+
+            var pig = result[splitIndex];
+            var firstAmmo = pig.ammo / 2;
+            var secondAmmo = pig.ammo - firstAmmo;
+
+            if (firstAmmo <= 0 || secondAmmo <= 0)
+            {
+                break;
+            }
+
+            result[splitIndex] = new PigSpawnData(pig.color, firstAmmo);
+            result.Insert(splitIndex + 1, new PigSpawnData(pig.color, secondAmmo));
+        }
+
+        return result;
+    }
+
+    private static int FindBestSplitIndex(List<PigSpawnData> pigs)
+    {
+        var bestIndex = -1;
+        var bestAmmo = 1;
+
+        for (var i = 0; i < pigs.Count; i++)
+        {
+            if (pigs[i].ammo <= bestAmmo)
+            {
+                continue;
+            }
+
+            bestAmmo = pigs[i].ammo;
+            bestIndex = i;
+        }
+
+        return bestIndex;
     }
 }

@@ -2,9 +2,7 @@ using UnityEngine;
 
 public class GameInitializer : MonoBehaviour
 {
-    private const int TotalGeneratedLevels = 5;
-
-    private System.Collections.Generic.List<PixelFlowLevelData> generatedLevels;
+    private System.Collections.Generic.List<PixelFlowLevelData> loadedLevels;
     private PixelFlowLevelData currentLevelData;
     private int currentLevelIndex;
 
@@ -35,9 +33,9 @@ public class GameInitializer : MonoBehaviour
         levelEditorView.SetVisible(false);
 
         levelSaveLoad = new PixelFlowLevelSaveLoad();
-        generatedLevels = GeneratedLevelSet.CreateFiveLevels();
+        loadedLevels = PixelFlowLevelLoader.LoadAllFromResources("Levels");
         currentLevelIndex = 0;
-        currentLevelData = CloneLevel(generatedLevels[currentLevelIndex]);
+        currentLevelData = GetCurrentLoadedLevel();
 
         gamePresenter = new PixelFlowGamePresenter(gridView, slotsView, hudView, gridView.PigRoot);
         gamePresenter.Initialize();
@@ -46,7 +44,7 @@ public class GameInitializer : MonoBehaviour
         gamePresenter.GridCellClicked += OnGridCellClicked;
         gamePresenter.LevelCompleted += AdvanceToNextLevel;
 
-        levelEditorPresenter = new LevelEditorPresenter(levelEditorView, levelSaveLoad, GetCurrentGeneratedLevel, ApplyLevel);
+        levelEditorPresenter = new LevelEditorPresenter(levelEditorView, levelSaveLoad, GetCurrentLoadedLevel, ApplyLevel);
         levelEditorPresenter.SetLevel(currentLevelData);
 
         ApplyLevel(currentLevelData);
@@ -78,8 +76,10 @@ public class GameInitializer : MonoBehaviour
 
     private void AdvanceToNextLevel()
     {
-        currentLevelIndex = (currentLevelIndex + 1) % TotalGeneratedLevels;
-        ApplyLevel(GetCurrentGeneratedLevel());
+        currentLevelIndex = loadedLevels != null && loadedLevels.Count > 0
+            ? (currentLevelIndex + 1) % loadedLevels.Count
+            : 0;
+        ApplyLevel(GetCurrentLoadedLevel());
     }
 
     private void ToggleEditor()
@@ -108,7 +108,7 @@ public class GameInitializer : MonoBehaviour
 
     private void ApplyLevel(PixelFlowLevelData levelData, bool updateEditor)
     {
-        currentLevelData = CloneLevel(levelData ?? GetCurrentGeneratedLevel());
+        currentLevelData = CloneLevel(levelData ?? GetCurrentLoadedLevel());
         gamePresenter.LoadLevel(currentLevelData);
         gamePresenter.SetEditorOpen(levelEditorView != null && levelEditorView.gameObject.activeSelf);
         hudView?.SetLevelLabel($"Level {currentLevelIndex + 1}");
@@ -147,18 +147,18 @@ public class GameInitializer : MonoBehaviour
         return JsonUtility.FromJson<PixelFlowLevelData>(JsonUtility.ToJson(source));
     }
 
-    private PixelFlowLevelData GetCurrentGeneratedLevel()
+    private PixelFlowLevelData GetCurrentLoadedLevel()
     {
-        if (generatedLevels == null || generatedLevels.Count == 0)
+        if (loadedLevels == null || loadedLevels.Count == 0)
         {
             return new PixelFlowLevelData();
         }
 
-        if (currentLevelIndex < 0 || currentLevelIndex >= generatedLevels.Count)
+        if (currentLevelIndex < 0 || currentLevelIndex >= loadedLevels.Count)
         {
             currentLevelIndex = 0;
         }
 
-        return CloneLevel(generatedLevels[currentLevelIndex]);
+        return CloneLevel(loadedLevels[currentLevelIndex]);
     }
 }

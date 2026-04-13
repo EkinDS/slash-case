@@ -92,19 +92,43 @@ public sealed class LevelEditorView : MonoBehaviour, ILevelEditorView
         var builder = new StringBuilder();
         builder.AppendLine($"Grid: {levelData.width} x {levelData.height}");
         builder.AppendLine($"Slots: {levelData.waitingSlotCount}");
-        builder.AppendLine("Generated order:");
+        var hasExactAmmo = PixelFlowLevelAnalyzer.HasExactAmmoForBoard(levelData);
+        var pigCount = PixelFlowLevelAnalyzer.CountPigs(levelData);
+        var isStartSolvable = PixelFlowLevelAnalyzer.IsStartSolvable(levelData);
+        builder.AppendLine(hasExactAmmo ? "Ammo: Exact" : "Ammo: Mismatch");
+        builder.AppendLine($"Pigs: {pigCount}");
+        builder.AppendLine(isStartSolvable ? "Start solvable: Yes" : "Start solvable: No");
+        builder.AppendLine("Configured pigs:");
 
-        var generatedSequence = PigLineGenerator.GenerateSolvableSequence(levelData);
+        var configuredPigs = new List<PigSpawnData>();
 
-        if (generatedSequence.Count == 0)
+        if (levelData.pigLines != null)
+        {
+            for (var lineIndex = 0; lineIndex < levelData.pigLines.Length; lineIndex++)
+            {
+                var line = levelData.pigLines[lineIndex];
+
+                if (line?.pigs == null)
+                {
+                    continue;
+                }
+
+                for (var pigIndex = 0; pigIndex < line.pigs.Length; pigIndex++)
+                {
+                    configuredPigs.Add(line.pigs[pigIndex]);
+                }
+            }
+        }
+
+        if (configuredPigs.Count == 0)
         {
             builder.AppendLine("None");
         }
         else
         {
-            for (var i = 0; i < generatedSequence.Count; i++)
+            for (var i = 0; i < configuredPigs.Count; i++)
             {
-                var pig = generatedSequence[i];
+                var pig = configuredPigs[i];
                 builder.AppendLine($"{i + 1}. {pig.color.ToDisplayName()} ({pig.ammo})");
             }
         }
