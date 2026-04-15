@@ -6,8 +6,12 @@ using UnityEngine;
 
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
-    private const float WorldCellSize = 1F;
+    private const float WorldCellSize = 0.8F;
     private const float CellVisualScale = 0.85F;
+    private const float BoardHeightOffset = 0.5F;
+    private const float BoardToConveyorGap = 2.5F;
+    private const float ConveyorThickness = 1.35F;
+    private const float EntryPadSize = 2.2F;
     private readonly Dictionary<int, GameObject> cellObjects = new Dictionary<int, GameObject>();
     private readonly List<GameObject> conveyorObjects = new List<GameObject>();
 
@@ -35,6 +39,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
         boardRoot = new GameObject("BoardRoot").transform;
         boardRoot.SetParent(transform, false);
+        boardRoot.localPosition = new Vector3(0F, BoardHeightOffset, 0F);
 
         effectsRoot = new GameObject("EffectsRoot").transform;
         effectsRoot.SetParent(transform, false);
@@ -136,7 +141,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
             PrimitiveType.Sphere,
             effectsRoot,
             new Vector3(from.x, 0.72F, from.y),
-            Vector3.one * 0.22F);
+            Vector3.one * 0.66F);
         WorldObjectUtility.SetColor(shotObject, color.ToUnityColor());
         Destroy(shotObject.GetComponent<Collider>());
         StartCoroutine(ShotRoutine(shotObject, from, to, onImpact));
@@ -165,27 +170,29 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     private void BuildConveyorVisuals()
     {
-        var cornerGap = 1F;
-        CreateConveyorStrip("TopConveyor", new Vector3(boardSize.x + 2.4F, 0.16F, 0.45F), new Vector3(0F, 0F, boardSize.y * 0.5F + 1F));
-        CreateConveyorStrip("BottomConveyor", new Vector3(boardSize.x + 2.4F - cornerGap, 0.16F, 0.45F),
-            new Vector3(cornerGap * 0.5F, 0F, -boardSize.y * 0.5F - 1F));
-        CreateConveyorStrip("LeftConveyor", new Vector3(0.45F, 0.16F, boardSize.y + 2.4F - cornerGap),
-            new Vector3(-boardSize.x * 0.5F - 1F, 0F, cornerGap * 0.5F));
-        CreateConveyorStrip("RightConveyor", new Vector3(0.45F, 0.16F, boardSize.y + 2.4F), new Vector3(boardSize.x * 0.5F + 1F, 0F, 0F));
+        var conveyorCenterOffset = BoardToConveyorGap + ConveyorThickness * 0.5F;
+        var horizontalSpan = boardSize.x + conveyorCenterOffset * 2F;
+        var verticalSpan = boardSize.y + conveyorCenterOffset * 2F;
+        CreateConveyorStrip("TopConveyor", new Vector3(horizontalSpan, 0.16F, ConveyorThickness), new Vector3(0F, 0F, boardSize.y * 0.5F + conveyorCenterOffset));
+        CreateConveyorStrip("BottomConveyor", new Vector3(horizontalSpan, 0.16F, ConveyorThickness),
+            new Vector3(0F, 0F, -boardSize.y * 0.5F - conveyorCenterOffset));
+        CreateConveyorStrip("LeftConveyor", new Vector3(ConveyorThickness, 0.16F, verticalSpan),
+            new Vector3(-boardSize.x * 0.5F - conveyorCenterOffset, 0F, 0F));
+        CreateConveyorStrip("RightConveyor", new Vector3(ConveyorThickness, 0.16F, verticalSpan), new Vector3(boardSize.x * 0.5F + conveyorCenterOffset, 0F, 0F));
 
         var entryPad = WorldObjectUtility.CreatePrimitive(
             "ConveyorEntryPad",
             PrimitiveType.Cube,
             transform,
-            new Vector3(-boardSize.x * 0.5F - 1F, -0.24F, -boardSize.y * 0.5F - 1F),
-            new Vector3(0.95F, 0.18F, 0.95F),
+            new Vector3(-boardSize.x * 0.5F - conveyorCenterOffset, -0.24F, -boardSize.y * 0.5F - conveyorCenterOffset),
+            new Vector3(EntryPadSize, 0.18F, EntryPadSize),
             new Color32(210, 220, 232, 255));
         conveyorObjects.Add(entryPad);
 
         conveyorCapacityText = WorldObjectUtility.CreateWorldText(
             "ConveyorCapacity",
             transform,
-            new Vector3(-boardSize.x * 0.5F - 1F, -0.14F, -boardSize.y * 0.5F - 1F),
+            new Vector3(-boardSize.x * 0.5F - conveyorCenterOffset, -0.14F, -boardSize.y * 0.5F - conveyorCenterOffset),
             "5/5",
             72,
             Color.black,

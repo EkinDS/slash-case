@@ -62,9 +62,9 @@ public static class WorldMaterialPalette
             case WorldMaterialRole.BoardBase:
                 return new Color32(46, 52, 68, 255);
             case WorldMaterialRole.Conveyor:
-                return new Color32(84, 111, 138, 255);
+                return new Color32(80, 82, 127, 255);
             case WorldMaterialRole.WaitingSlotEmpty:
-                return new Color32(84, 76, 104, 255);
+                return new Color32(50, 50, 80, 255);
             case WorldMaterialRole.HudButtonPrimary:
                 return new Color32(83, 126, 218, 255);
             case WorldMaterialRole.HudButtonSecondary:

@@ -7,7 +7,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private const string PigPrefabResourcePath = "Pig/Prefabs/Pig";
     private const int ConveyorCapacity = 5;
     private const float BasePigSpeed = 15F;
-    private const float ConveyorPadding = 1F;
+    private const float ConveyorPadding = 3.175F;
     private const float LaunchSpacing = 1.1F;
     private const float GuaranteeSpeedMultiplier = 2F;
     private const float GuaranteeRampSeconds = 1.1F;
