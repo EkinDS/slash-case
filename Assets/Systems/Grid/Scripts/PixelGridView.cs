@@ -6,6 +6,7 @@ using UnityEngine;
 
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
+    private const string CellPrefabResourcePath = "Grid/Prefabs/Cell";
     private const float WorldCellSize = 0.8F;
     private const float CellVisualScale = 0.85F;
     private const float BoardHeightOffset = 0.72F;
@@ -25,6 +26,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
     private float renderedCellSize;
     private Vector3 boardCenter;
     private Vector2 boardSize;
+    private GameObject cellPrefab;
 
     public event Action<int, int> CellClicked;
 
@@ -88,13 +90,14 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         {
             for (var x = 0; x < this.width; x++)
             {
-                var cellObject = WorldObjectUtility.CreatePrimitive(
-                    $"Cell_{x}_{y}",
-                    PrimitiveType.Cube,
-                    boardRoot,
-                    GetCellLocalPosition(x, y),
-                    new Vector3(renderedCellSize, renderedCellSize, renderedCellSize),
-                    new Color32(44, 52, 74, 255));
+                var cellObject = CreateCellObject(x, y);
+
+                if (cellObject == null)
+                {
+                    continue;
+                }
+
+                WorldObjectUtility.SetColor(cellObject, new Color32(44, 52, 74, 255));
 
                 var relay = cellObject.AddComponent<ClickRelay>();
                 var localX = x;
@@ -301,6 +304,26 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
         var startX = -boardSize.x * 0.5F + cellSize * 0.5F;
         var startZ = boardSize.y * 0.5F - cellSize * 0.5F;
         return new Vector3(startX + x * (cellSize + cellGap), 0F, startZ - y * (cellSize + cellGap));
+    }
+
+    private GameObject CreateCellObject(int x, int y)
+    {
+        if (cellPrefab == null)
+        {
+            cellPrefab = Resources.Load<GameObject>(CellPrefabResourcePath);
+        }
+
+        if (cellPrefab == null)
+        {
+            Debug.LogError($"Cell prefab not found at Resources path '{CellPrefabResourcePath}'.");
+            return null;
+        }
+
+        var cellObject = Instantiate(cellPrefab, boardRoot, false);
+        cellObject.name = $"Cell_{x}_{y}";
+        cellObject.transform.localPosition = GetCellLocalPosition(x, y);
+        cellObject.transform.localScale = new Vector3(renderedCellSize, renderedCellSize, renderedCellSize);
+        return cellObject;
     }
 
     private static int GetCellKey(int x, int y)
