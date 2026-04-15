@@ -5,7 +5,7 @@ using UnityEngine;
 
 public sealed class PigView : MonoBehaviour, IPigView
 {
-    private const float PigScaleMultiplier = 3F;
+    private const float PigScaleMultiplier = 2.7F;
     private static readonly Vector3 ClickColliderCenter = new Vector3(0F, 0.55F, 0F);
     private static readonly Vector3 ClickColliderSize = new Vector3(1.2F, 1.1F, 1.2F);
     [SerializeField] private SkinnedMeshRenderer renderer;
