@@ -8,7 +8,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
     private const float WorldCellSize = 0.8F;
     private const float CellVisualScale = 0.85F;
-    private const float BoardHeightOffset = 0.5F;
+    private const float BoardHeightOffset = 0.72F;
     private const float BoardToConveyorGap = 2.5F;
     private const float ConveyorThickness = 1.35F;
     private const float EntryPadSize = 2.2F;
@@ -126,7 +126,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     public Vector2 GetCellCenter(int x, int y)
     {
-        var worldPosition = boardRoot.TransformPoint(GetCellLocalPosition(x, y) + new Vector3(0F, 0.22F, 0F));
+        var worldPosition = boardRoot.TransformPoint(GetCellLocalPosition(x, y));
         return new Vector2(worldPosition.x, worldPosition.z);
     }
 
@@ -216,10 +216,10 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
     private IEnumerator ShotRoutine(GameObject shotObject, Vector2 from, Vector2 to, Action onImpact)
     {
         var distance = Vector2.Distance(from, to);
-        var duration = Mathf.Max(0.01F, distance / 30F);
+        var duration = Mathf.Max(0.01F, distance / 42F);
         var elapsed = 0F;
         var start = new Vector3(from.x, 0.72F, from.y);
-        var end = new Vector3(to.x, 0.35F, to.y);
+        var end = new Vector3(to.x, 0.72F, to.y);
 
         while (elapsed < duration)
         {
@@ -230,9 +230,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
             elapsed += Time.deltaTime;
             var t = Mathf.Clamp01(elapsed / duration);
-            var position = Vector3.Lerp(start, end, t);
-            position.y += Mathf.Sin(t * Mathf.PI) * 0.35F;
-            shotObject.transform.position = position;
+            shotObject.transform.position = Vector3.Lerp(start, end, t);
             yield return null;
         }
 

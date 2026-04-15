@@ -11,6 +11,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private const float LaunchSpacing = 1.1F;
     private const float GuaranteeSpeedMultiplier = 2F;
     private const float GuaranteeRampSeconds = 1.1F;
+    private const float ShotAlignmentToleranceRatio = 0.35F;
 
     private readonly IPixelGridView gridView;
     private readonly IWaitingSlotsView waitingSlotsView;
@@ -263,7 +264,12 @@ public sealed class PixelFlowGamePresenter : IDisposable
             }
 
             var side = conveyorLoopModel.EvaluateSide(pig.Distance);
-            var lineIndex = conveyorLoopModel.EvaluateLineIndex(pig.Distance, gridModel.Width, gridModel.Height);
+
+            if (!TryGetAlignedLineIndex(activePigViews[pigIndex].Position, side, out var lineIndex))
+            {
+                continue;
+            }
+
             var sideIndex = (int)side;
 
             if (pig.LastShotSide == sideIndex && pig.LastShotLineIndex == lineIndex)
@@ -565,6 +571,96 @@ public sealed class PixelFlowGamePresenter : IDisposable
         var pigViewObject = UnityEngine.Object.Instantiate(pigPrefab);
         pigViewObject.name = $"PigView_{pigId}";
         return pigViewObject;
+    }
+
+    private bool TryGetAlignedLineIndex(Vector2 pigPosition, ConveyorSide side, out int lineIndex)
+    {
+        lineIndex = 0;
+
+        if (gridModel == null)
+        {
+            return false;
+        }
+
+        var boardRect = gridView.BoardRect;
+
+        switch (side)
+        {
+            case ConveyorSide.Top:
+            case ConveyorSide.Bottom:
+                return TryGetAlignedColumnIndex(
+                    pigPosition.x,
+                    boardRect.xMin,
+                    boardRect.width,
+                    gridModel.Width,
+                    out lineIndex);
+            case ConveyorSide.Left:
+            case ConveyorSide.Right:
+                if (!TryGetAlignedRowIndex(
+                        pigPosition.y,
+                        boardRect.yMin,
+                        boardRect.height,
+                        gridModel.Height,
+                        out var rowIndex))
+                {
+                    return false;
+                }
+
+                lineIndex = rowIndex;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryGetAlignedColumnIndex(float coordinate, float min, float size, int count, out int index)
+    {
+        index = 0;
+
+        if (count <= 0 || size <= 0F)
+        {
+            return false;
+        }
+
+        var step = size / count;
+        var firstCenter = min + step * 0.5F;
+        var rawIndex = Mathf.RoundToInt((coordinate - firstCenter) / step);
+        rawIndex = Mathf.Clamp(rawIndex, 0, count - 1);
+        var center = firstCenter + rawIndex * step;
+        var tolerance = step * ShotAlignmentToleranceRatio;
+
+        if (Mathf.Abs(coordinate - center) > tolerance)
+        {
+            return false;
+        }
+
+        index = rawIndex;
+        return true;
+    }
+
+    private static bool TryGetAlignedRowIndex(float coordinate, float min, float size, int count, out int index)
+    {
+        index = 0;
+
+        if (count <= 0 || size <= 0F)
+        {
+            return false;
+        }
+
+        var step = size / count;
+        var topCenter = min + size - step * 0.5F;
+        var rawIndex = Mathf.RoundToInt((topCenter - coordinate) / step);
+        rawIndex = Mathf.Clamp(rawIndex, 0, count - 1);
+        var center = topCenter - rawIndex * step;
+        var tolerance = step * ShotAlignmentToleranceRatio;
+
+        if (Mathf.Abs(coordinate - center) > tolerance)
+        {
+            return false;
+        }
+
+        index = rawIndex;
+        return true;
     }
 
     private void GeneratePigLinesFromPuzzle()

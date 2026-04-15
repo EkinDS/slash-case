@@ -20,7 +20,7 @@ public sealed class PixelFlowHudView : MonoBehaviour, IPixelFlowHudView
         statusText = WorldObjectUtility.CreateWorldText(
             "StatusText",
             transform,
-            new Vector3(0F, 0.25F, 17.4F),
+            new Vector3(0F, 0.25F, 14.11F),
             string.Empty,
             96,
             Color.white,
