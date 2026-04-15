@@ -6,14 +6,19 @@ using UnityEngine;
 public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 {
     private const string PigPrefabResourcePath = "Pig/Prefabs/Pig";
-    private const float QueuedPigSpacing = 2.15F;
-    private const float QueuedPigFrontOffset = 1.3F;
-    private const float LineSpacing = 4.5F;
-    private const float LineDepthOffset = -5.6F;
-    private static readonly Vector3 SlotPigScale = Vector3.one * 1.1F;
-    private static readonly Vector3 QueuedPigScaleVector = Vector3.one * 1.2F;
-    private static readonly Vector3 PigColliderCenter = new Vector3(0F, 0.55F, 0F);
-    private static readonly Vector3 PigColliderSize = new Vector3(1.2F, 1.1F, 1.2F);
+    private const float SlotSpacing = 4.6F;
+    private const float SlotWidth = 3.6F;
+    private const float SlotHeight = 0.5F;
+    private const float SlotDepth = 3.6F;
+    private const float QueuedPigSpacing = 4.8F;
+    private const float QueuedPigFrontOffset = 3.4F;
+    private const float LineSpacing = 10F;
+    private const float LineDepthOffset = -9.5F;
+    private const float SlotPigVerticalOffset = 0.54F;
+    private static readonly Vector3 SlotPigScale = Vector3.one * 3F;
+    private static readonly Vector3 QueuedPigScaleVector = Vector3.one * 3F;
+    private static readonly Vector3 PigColliderCenter = new Vector3(0F, 1.65F, 0F);
+    private static readonly Vector3 PigColliderSize = new Vector3(3.6F, 3.3F, 3.6F);
 
     private readonly List<GameObject> slotObjects = new List<GameObject>();
     private readonly List<GameObject> slotPigObjects = new List<GameObject>();
@@ -44,8 +49,7 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         ClearSlotPigs();
 
         var safeCount = Mathf.Max(1, slotCount);
-        var spacing = 1.8F;
-        var totalWidth = (safeCount - 1) * spacing;
+        var totalWidth = (safeCount - 1) * SlotSpacing;
 
         for (var i = 0; i < safeCount; i++)
         {
@@ -54,8 +58,8 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
                 $"Slot_{i}",
                 PrimitiveType.Cube,
                 slotRoot,
-                new Vector3(-totalWidth * 0.5F + i * spacing, 0F, 0F),
-                new Vector3(1.25F, 0.35F, 1.25F),
+                new Vector3(-totalWidth * 0.5F + i * SlotSpacing, 0F, 0F),
+                new Vector3(SlotWidth, SlotHeight, SlotDepth),
                 WorldMaterialRole.WaitingSlotEmpty);
             var relay = slotObject.AddComponent<ClickRelay>();
             relay.Clicked += () => SlotClicked?.Invoke(localIndex);
@@ -190,10 +194,20 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 
     private static void EnsureSlotCollider(GameObject slotObject)
     {
-        if (slotObject != null && slotObject.GetComponent<Collider>() == null)
+        if (slotObject == null)
         {
-            slotObject.AddComponent<BoxCollider>();
+            return;
         }
+
+        var collider = slotObject.GetComponent<BoxCollider>();
+
+        if (collider == null)
+        {
+            collider = slotObject.AddComponent<BoxCollider>();
+        }
+
+        collider.center = Vector3.zero;
+        collider.size = Vector3.one;
     }
 
     private static void RemoveSlotCollider(GameObject slotObject)
@@ -217,10 +231,10 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 
         if (existingPig == null)
         {
-            existingPig = CreatePigObject(
+                existingPig = CreatePigObject(
                 $"SlotPig_{slotIndex}",
                 slotObjects[slotIndex].transform,
-                new Vector3(0F, 0.18F, 0F),
+                new Vector3(0F, SlotPigVerticalOffset, 0F),
                 state.Color,
                 state.Ammo,
                 SlotPigScale);
@@ -241,7 +255,7 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         if (pigView != null)
         {
             pigView.Initialize(existingPig.transform.parent, state.Color);
-            existingPig.transform.localPosition = new Vector3(0F, 0.18F, 0F);
+            existingPig.transform.localPosition = new Vector3(0F, SlotPigVerticalOffset, 0F);
             existingPig.transform.localScale = SlotPigScale;
             pigView.SetAmmo(state.Ammo);
         }

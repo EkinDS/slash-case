@@ -4,12 +4,13 @@ using UnityEngine;
 
 public sealed class PigView : MonoBehaviour, IPigView
 {
+    private const float PigScaleMultiplier = 3F;
     [SerializeField] private SkinnedMeshRenderer renderer;
     [SerializeField] private TextMeshPro bulletCountText;
     
     private const float ConveyorRideHeight = 0.85F;
-    private static readonly Vector3 LaunchStartScale = Vector3.one * 0.65F;
-    private static readonly Vector3 LaunchEndScale = Vector3.one;
+    private static readonly Vector3 LaunchStartScale = Vector3.one * (0.65F * PigScaleMultiplier);
+    private static readonly Vector3 LaunchEndScale = Vector3.one * PigScaleMultiplier;
     private static readonly Quaternion AmmoTextWorldRotation = Quaternion.Euler(90F, 0F, 0F);
 
     private Transform cachedTransform;
@@ -73,13 +74,6 @@ public sealed class PigView : MonoBehaviour, IPigView
 
     public void SetAimDirection(Vector2 direction)
     {
-        if (direction.sqrMagnitude <= 0.0001F)
-        {
-            return;
-        }
-
-        lastDirection = direction.normalized;
-        ApplyFacing(lastDirection);
         OrientAmmoText();
     }
 
