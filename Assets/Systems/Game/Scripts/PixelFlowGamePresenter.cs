@@ -4,6 +4,7 @@ using UnityEngine;
 
 public sealed class PixelFlowGamePresenter : IDisposable
 {
+    private const string PigPrefabResourcePath = "Pig/Prefabs/Pig";
     private const int ConveyorCapacity = 5;
     private const float BasePigSpeed = 15F;
     private const float ConveyorPadding = 1F;
@@ -34,6 +35,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private float guaranteeRampProgress;
     private int nextPigId;
     private int pendingShots;
+    private GameObject pigPrefab;
 
     public PixelFlowGamePresenter(IPixelGridView gridView, IWaitingSlotsView waitingSlotsView, IPixelFlowHudView hudView,
         Transform pigLayer)
@@ -277,6 +279,8 @@ public sealed class PixelFlowGamePresenter : IDisposable
                 continue;
             }
 
+            activePigViews[pigIndex].SetAimDirection(
+                gridView.GetCellCenter(hitResult.X, hitResult.Y) - activePigViews[pigIndex].Position);
             pig.ConsumeAmmo();
             activePigViews[pigIndex].SetAmmo(pig.AmmoRemaining);
             activePigViews[pigIndex].PlayHitFeedback();
@@ -529,13 +533,38 @@ public sealed class PixelFlowGamePresenter : IDisposable
         pig.TotalDistanceTravelled = activePigs.Count * LaunchSpacing;
         activePigs.Add(pig);
 
-        var pigViewObject = new GameObject($"PigView_{pig.Id}");
-        var pigView = pigViewObject.AddComponent<PigView>();
+        var pigViewObject = CreatePigViewObject(pig.Id);
+        var pigView = pigViewObject != null ? pigViewObject.GetComponent<PigView>() : null;
+
+        if (pigView == null)
+        {
+            pigViewObject = new GameObject($"PigView_{pig.Id}");
+            pigView = pigViewObject.AddComponent<PigView>();
+        }
+
         pigView.Initialize(pigLayer, pig.Color);
         pigView.SetPosition(conveyorLoopModel.EvaluatePosition(pig.Distance));
         pigView.SetAmmo(pig.AmmoRemaining);
         pigView.PlayLaunch();
         activePigViews.Add(pigView);
+    }
+
+    private GameObject CreatePigViewObject(int pigId)
+    {
+        if (pigPrefab == null)
+        {
+            pigPrefab = Resources.Load<GameObject>(PigPrefabResourcePath);
+        }
+
+        if (pigPrefab == null)
+        {
+            Debug.LogError($"Pig prefab not found at Resources path '{PigPrefabResourcePath}'.");
+            return null;
+        }
+
+        var pigViewObject = UnityEngine.Object.Instantiate(pigPrefab);
+        pigViewObject.name = $"PigView_{pigId}";
+        return pigViewObject;
     }
 
     private void GeneratePigLinesFromPuzzle()

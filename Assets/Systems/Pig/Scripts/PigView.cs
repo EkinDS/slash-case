@@ -4,20 +4,22 @@ using UnityEngine;
 
 public sealed class PigView : MonoBehaviour, IPigView
 {
+    [SerializeField] private SkinnedMeshRenderer renderer;
+    [SerializeField] private TextMeshPro bulletCountText;
+    
     private const float ConveyorRideHeight = 0.85F;
-    private const float PigScaleMultiplier = 2F;
-    private static readonly Vector3 BodyBaseScale = new Vector3(0.72F, 0.72F, 0.72F) * PigScaleMultiplier;
     private static readonly Vector3 LaunchStartScale = Vector3.one * 0.65F;
     private static readonly Vector3 LaunchEndScale = Vector3.one;
     private static readonly Quaternion AmmoTextWorldRotation = Quaternion.Euler(90F, 0F, 0F);
 
     private Transform cachedTransform;
-    private Transform visualRoot;
-    private GameObject bodyObject;
-    private TextMeshPro ammoText;
+    private Transform rendererTransform;
     private Coroutine activeRoutine;
     private Vector2 lastDirection = Vector2.right;
     private float walkCycle;
+    private Vector3 rendererBaseLocalPosition;
+    private Vector3 rendererBaseLocalScale;
+    private Quaternion rendererBaseLocalRotation;
 
     public Vector2 Position => new Vector2(cachedTransform.position.x, cachedTransform.position.z);
 
@@ -26,30 +28,20 @@ public sealed class PigView : MonoBehaviour, IPigView
         cachedTransform = transform;
         cachedTransform.SetParent(parent, false);
         cachedTransform.localPosition = Vector3.zero;
-
-        visualRoot = new GameObject("VisualRoot").transform;
-        visualRoot.SetParent(cachedTransform, false);
-
-        bodyObject = WorldObjectUtility.CreatePrimitive(
-            "Body",
-            PrimitiveType.Cube,
-            visualRoot,
-            new Vector3(0F, 0.42F * PigScaleMultiplier, 0F),
-            BodyBaseScale);
-        WorldObjectUtility.SetColor(bodyObject, color.ToUnityColor());
-        Destroy(bodyObject.GetComponent<Collider>());
-
-        ammoText = WorldObjectUtility.CreateWorldText(
-            "Ammo",
-            cachedTransform,
-            new Vector3(0F, 1.96F, 0F),
-            "0",
-            96,
-            Color.black,
-            TextAnchor.MiddleCenter,
-            0.144F);
-        ammoText.text = "0";
         cachedTransform.localScale = LaunchEndScale;
+        cachedTransform.rotation = Quaternion.identity;
+
+        rendererTransform = renderer != null ? renderer.transform : null;
+
+        if (rendererTransform != null)
+        {
+            rendererBaseLocalPosition = rendererTransform.localPosition;
+            rendererBaseLocalScale = rendererTransform.localScale;
+            rendererBaseLocalRotation = rendererTransform.localRotation;
+        }
+
+        ApplyColor(color);
+        SetAmmo(0);
         OrientAmmoText();
     }
 
@@ -57,8 +49,12 @@ public sealed class PigView : MonoBehaviour, IPigView
     {
         cachedTransform.position = new Vector3(anchoredPosition.x, ConveyorRideHeight, anchoredPosition.y);
         walkCycle += Time.deltaTime * 14F;
-        bodyObject.transform.localPosition = new Vector3(0F,
-            0.42F * PigScaleMultiplier + Mathf.Abs(Mathf.Sin(walkCycle)) * 0.12F * PigScaleMultiplier, 0F);
+
+        if (rendererTransform != null)
+        {
+            rendererTransform.localPosition = rendererBaseLocalPosition + new Vector3(0F, Mathf.Abs(Mathf.Sin(walkCycle)) * 0.24F, 0F);
+        }
+
         OrientAmmoText();
     }
 
@@ -70,13 +66,29 @@ public sealed class PigView : MonoBehaviour, IPigView
         }
 
         lastDirection = direction.normalized;
-        visualRoot.rotation = Quaternion.LookRotation(new Vector3(lastDirection.x, 0F, lastDirection.y), Vector3.up);
+        ApplyFacing(lastDirection);
+
+        OrientAmmoText();
+    }
+
+    public void SetAimDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= 0.0001F)
+        {
+            return;
+        }
+
+        lastDirection = direction.normalized;
+        ApplyFacing(lastDirection);
         OrientAmmoText();
     }
 
     public void SetAmmo(int ammo)
     {
-        ammoText.text = ammo.ToString();
+        if (bulletCountText != null)
+        {
+            bulletCountText.text = ammo.ToString();
+        }
     }
 
     public void PlayLaunch()
@@ -102,10 +114,20 @@ public sealed class PigView : MonoBehaviour, IPigView
     private IEnumerator HitRoutine()
     {
         cachedTransform.localScale = LaunchEndScale * 1.08F;
-        bodyObject.transform.localScale = BodyBaseScale * 1.05F;
+
+        if (rendererTransform != null)
+        {
+            rendererTransform.localScale = rendererBaseLocalScale * 1.05F;
+        }
+
         yield return new WaitForSeconds(0.06F);
         cachedTransform.localScale = LaunchEndScale;
-        bodyObject.transform.localScale = BodyBaseScale;
+
+        if (rendererTransform != null)
+        {
+            rendererTransform.localScale = rendererBaseLocalScale;
+        }
+
         activeRoutine = null;
     }
 
@@ -114,15 +136,19 @@ public sealed class PigView : MonoBehaviour, IPigView
         var duration = 0.2F;
         var elapsed = 0F;
         var startScale = cachedTransform.localScale;
-        var originalColor = bodyObject.GetComponent<Renderer>().material.color;
+        var originalColor = renderer != null ? renderer.material.color : Color.white;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             var t = Mathf.Clamp01(elapsed / duration);
             cachedTransform.localScale = Vector3.LerpUnclamped(startScale, Vector3.zero, t);
-            WorldObjectUtility.SetColor(bodyObject,
-                Color.Lerp(originalColor, new Color(originalColor.r, originalColor.g, originalColor.b, 0.1F), t));
+
+            if (renderer != null)
+            {
+                renderer.material.color = Color.Lerp(originalColor, new Color(originalColor.r, originalColor.g, originalColor.b, 0.1F), t);
+            }
+
             yield return null;
         }
 
@@ -157,9 +183,39 @@ public sealed class PigView : MonoBehaviour, IPigView
 
     private void OrientAmmoText()
     {
-        if (ammoText != null)
+        if (bulletCountText != null)
         {
-            ammoText.transform.rotation = AmmoTextWorldRotation;
+            bulletCountText.transform.rotation = AmmoTextWorldRotation;
         }
+    }
+
+    private void ApplyColor(PixelPigColor color)
+    {
+        if (renderer != null)
+        {
+            renderer.material.color = color.ToUnityColor();
+        }
+    }
+
+    private void ApplyFacing(Vector2 direction)
+    {
+        if (cachedTransform == null)
+        {
+            return;
+        }
+
+        var cardinalDirection = GetCardinalDirection(direction);
+        var facingDirection = new Vector2(-cardinalDirection.y, cardinalDirection.x);
+        cachedTransform.rotation = Quaternion.LookRotation(new Vector3(facingDirection.x, 0F, facingDirection.y), Vector3.up);
+    }
+
+    private static Vector2 GetCardinalDirection(Vector2 direction)
+    {
+        if (Mathf.Abs(direction.x) >= Mathf.Abs(direction.y))
+        {
+            return direction.x >= 0F ? Vector2.right : Vector2.left;
+        }
+
+        return direction.y >= 0F ? Vector2.up : Vector2.down;
     }
 }
