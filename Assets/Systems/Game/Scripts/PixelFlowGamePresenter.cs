@@ -51,6 +51,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
     public event Action EditorToggleRequested;
     public event Action<int, int> GridCellClicked;
     public event Action LevelCompleted;
+    public event Action LevelFailed;
 
     public void Initialize()
     {
@@ -215,6 +216,7 @@ public sealed class PixelFlowGamePresenter : IDisposable
                 levelFailed = true;
                 waitingSlotsView.PlayOverflowWarning();
                 hudView.SetStatus("Level Failed", new Color32(255, 122, 122, 255));
+                LevelFailed?.Invoke();
             }
 
             RemoveActivePigAt(i, false);

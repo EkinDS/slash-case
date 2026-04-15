@@ -46,6 +46,7 @@ public class GameInitializer : MonoBehaviour
         gamePresenter.EditorToggleRequested += ToggleEditor;
         gamePresenter.GridCellClicked += OnGridCellClicked;
         gamePresenter.LevelCompleted += AdvanceToNextLevel;
+        gamePresenter.LevelFailed += RestartLevelWithDelay;
 
         levelEditorPresenter = new LevelEditorPresenter(levelEditorView, levelSaveLoad, GetCurrentLoadedLevel, ApplyLevel);
         levelEditorPresenter.SetLevel(currentLevelData);
@@ -72,6 +73,7 @@ public class GameInitializer : MonoBehaviour
             gamePresenter.EditorToggleRequested -= ToggleEditor;
             gamePresenter.GridCellClicked -= OnGridCellClicked;
             gamePresenter.LevelCompleted -= AdvanceToNextLevel;
+            gamePresenter.LevelFailed -= RestartLevelWithDelay;
             gamePresenter.Dispose();
         }
 
@@ -81,6 +83,16 @@ public class GameInitializer : MonoBehaviour
     private void RestartLevel()
     {
         ApplyLevel(currentLevelData);
+    }
+
+    private void RestartLevelWithDelay()
+    {
+        if (levelTransitionCoroutine != null)
+        {
+            StopCoroutine(levelTransitionCoroutine);
+        }
+
+        levelTransitionCoroutine = StartCoroutine(RestartLevelRoutine());
     }
 
     private void AdvanceToNextLevel()
@@ -186,6 +198,13 @@ public class GameInitializer : MonoBehaviour
             ? (currentLevelIndex + 1) % loadedLevels.Count
             : 0;
         ApplyLevel(GetCurrentLoadedLevel());
+        levelTransitionCoroutine = null;
+    }
+
+    private System.Collections.IEnumerator RestartLevelRoutine()
+    {
+        yield return new WaitForSeconds(LevelTransitionDelaySeconds);
+        ApplyLevel(currentLevelData);
         levelTransitionCoroutine = null;
     }
 }
