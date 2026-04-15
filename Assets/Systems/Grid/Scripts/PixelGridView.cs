@@ -6,7 +6,6 @@ using UnityEngine;
 
 public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 {
-    private const string CellPrefabResourcePath = "Grid/Prefabs/Cell";
     private const float WorldCellSize = 0.8F;
     private const float CellVisualScale = 0.85F;
     private const float BoardHeightOffset = 0.72F;
@@ -26,7 +25,7 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
     private float renderedCellSize;
     private Vector3 boardCenter;
     private Vector2 boardSize;
-    private GameObject cellPrefab;
+    private ICellPrefabProvider cellPrefabProvider;
 
     public event Action<int, int> CellClicked;
 
@@ -34,8 +33,9 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     public Transform PigRoot { get; private set; }
 
-    public void Initialize(Transform parent)
+    public void Initialize(Transform parent, ICellPrefabProvider cellPrefabProvider)
     {
+        this.cellPrefabProvider = cellPrefabProvider;
         transform.SetParent(parent, false);
         transform.position = Vector3.zero;
 
@@ -308,14 +308,11 @@ public sealed class PixelGridView : MonoBehaviour, IPixelGridView
 
     private GameObject CreateCellObject(int x, int y)
     {
-        if (cellPrefab == null)
-        {
-            cellPrefab = Resources.Load<GameObject>(CellPrefabResourcePath);
-        }
+        var cellPrefab = cellPrefabProvider != null ? cellPrefabProvider.GetCellPrefab() : null;
 
         if (cellPrefab == null)
         {
-            Debug.LogError($"Cell prefab not found at Resources path '{CellPrefabResourcePath}'.");
+            Debug.LogError("Cell prefab provider returned null.");
             return null;
         }
 

@@ -12,6 +12,8 @@ public interface ILevelEditorView
     event Action LoadRequested;
     event Action ResetRequested;
 
+    bool IsVisible { get; }
+
     void SetVisible(bool visible);
     void SetSelectedColor(PixelPigColor color);
     void SetSummary(PixelFlowLevelData levelData);

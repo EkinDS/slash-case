@@ -5,7 +5,6 @@ using UnityEngine;
 
 public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 {
-    private const string PigPrefabResourcePath = "Pig/Prefabs/Pig";
     private const float SlotSpacing = 4F;
     private const float SlotWidth = 2.53F;
     private const float SlotHeight = 0.5F;
@@ -15,21 +14,13 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
     private const float LineSpacing = 4F;
     private const float LineDepthOffset = -9.5F;
     private const float SlotPigVerticalOffset = 0.54F;
-    private static readonly Vector3 SlotPigScale = Vector3.one * 3F;
-    private static readonly Vector3 QueuedPigScaleVector = Vector3.one * 3F;
-    private static readonly Vector3 PigColliderCenter = new Vector3(0F, 0.55F, 0F);
-    private static readonly Vector3 PigColliderSize = new Vector3(1.2F, 1.1F, 1.2F);
 
     private readonly List<GameObject> slotObjects = new List<GameObject>();
-    private readonly List<GameObject> slotPigObjects = new List<GameObject>();
     private readonly List<Transform> lineRoots = new List<Transform>();
-    private readonly List<List<GameObject>> linePigObjects = new List<List<GameObject>>();
     private Transform slotRoot;
     private Coroutine warningRoutine;
-    private GameObject pigPrefab;
 
     public event Action<int> SlotClicked;
-    public event Action<int> PigLineClicked;
 
     public void Initialize(Transform parent)
     {
@@ -46,7 +37,6 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         }
 
         slotObjects.Clear();
-        ClearSlotPigs();
 
         var safeCount = Mathf.Max(1, slotCount);
         var totalWidth = (safeCount - 1) * SlotSpacing;
@@ -65,11 +55,15 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
             relay.Clicked += () => SlotClicked?.Invoke(localIndex);
 
             slotObjects.Add(slotObject);
-            slotPigObjects.Add(null);
         }
     }
 
-    public void Render(IReadOnlyList<WaitingSlotState> slotStates, IReadOnlyList<IReadOnlyList<QueuedPigState>> lineStates)
+    public void SetLineCount(int lineCount)
+    {
+        EnsureLineRoots(lineCount);
+    }
+
+    public void RenderSlots(IReadOnlyList<WaitingSlotState> slotStates)
     {
         for (var i = 0; i < slotObjects.Count; i++)
         {
@@ -77,19 +71,15 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
 
             if (state.HasPig)
             {
-                EnsureSlotPig(i, state);
                 EnsureSlotCollider(slotObjects[i]);
             }
             else
             {
-                DestroySlotPig(i);
                 RemoveSlotCollider(slotObjects[i]);
             }
 
             WorldObjectUtility.SetMaterial(slotObjects[i], WorldMaterialPalette.Get(WorldMaterialRole.WaitingSlotEmpty));
         }
-
-        RenderPigLines(lineStates);
     }
 
     public void PlayOverflowWarning()
@@ -116,60 +106,6 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         warningRoutine = null;
     }
 
-    private void RenderPigLines(IReadOnlyList<IReadOnlyList<QueuedPigState>> lineStates)
-    {
-        EnsureLineRoots(lineStates != null ? lineStates.Count : 0);
-
-        for (var lineIndex = 0; lineIndex < lineRoots.Count; lineIndex++)
-        {
-            var pigObjects = linePigObjects[lineIndex];
-
-            for (var i = 0; i < pigObjects.Count; i++)
-            {
-                Destroy(pigObjects[i]);
-            }
-
-            pigObjects.Clear();
-
-            var states = lineStates != null && lineIndex < lineStates.Count ? lineStates[lineIndex] : null;
-
-            if (states == null)
-            {
-                continue;
-            }
-
-            for (var pigIndex = 0; pigIndex < states.Count; pigIndex++)
-            {
-                var state = states[pigIndex];
-                var pigObject = CreatePigObject(
-                    $"QueuedPig_{lineIndex}_{pigIndex}",
-                    lineRoots[lineIndex],
-                    new Vector3(0F, 0F, QueuedPigFrontOffset - pigIndex * QueuedPigSpacing),
-                    state.Color,
-                    state.Ammo,
-                    QueuedPigScaleVector);
-
-                if (pigObject == null)
-                {
-                    continue;
-                }
-
-                if (pigIndex == 0)
-                {
-                    var capturedLineIndex = lineIndex;
-                    var relay = pigObject.AddComponent<ClickRelay>();
-                    relay.Clicked += () => PigLineClicked?.Invoke(capturedLineIndex);
-                }
-                else
-                {
-                    Destroy(pigObject.GetComponent<Collider>());
-                }
-
-                pigObjects.Add(pigObject);
-            }
-        }
-    }
-
     private void EnsureLineRoots(int lineCount)
     {
         var safeLineCount = Mathf.Max(1, lineCount);
@@ -180,7 +116,6 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
             var lineRoot = new GameObject($"PigLine_{lineIndex}").transform;
             lineRoot.SetParent(slotRoot, false);
             lineRoots.Add(lineRoot);
-            linePigObjects.Add(new List<GameObject>());
         }
 
         var totalWidth = (safeLineCount - 1) * LineSpacing;
@@ -190,6 +125,28 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
             lineRoots[lineIndex].localPosition = new Vector3(-totalWidth * 0.5F + lineIndex * LineSpacing, 0F, LineDepthOffset);
             lineRoots[lineIndex].gameObject.SetActive(lineIndex < safeLineCount);
         }
+    }
+
+    public Vector3 GetSlotWorldPosition(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= slotObjects.Count)
+        {
+            return slotRoot != null ? slotRoot.position : Vector3.zero;
+        }
+
+        var localPosition = slotObjects[slotIndex].transform.localPosition;
+        return slotRoot.TransformPoint(new Vector3(localPosition.x, SlotPigVerticalOffset, localPosition.z));
+    }
+
+    public Vector3 GetLinePigWorldPosition(int lineIndex, int pigIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= lineRoots.Count)
+        {
+            return slotRoot != null ? slotRoot.position : Vector3.zero;
+        }
+
+        var localPosition = new Vector3(0F, 0F, QueuedPigFrontOffset - pigIndex * QueuedPigSpacing);
+        return lineRoots[lineIndex].TransformPoint(localPosition);
     }
 
     private static void EnsureSlotCollider(GameObject slotObject)
@@ -220,155 +177,4 @@ public sealed class WaitingSlotsView : MonoBehaviour, IWaitingSlotsView
         }
     }
 
-    private void EnsureSlotPig(int slotIndex, WaitingSlotState state)
-    {
-        if (slotIndex < 0 || slotIndex >= slotObjects.Count)
-        {
-            return;
-        }
-
-        var existingPig = slotIndex < slotPigObjects.Count ? slotPigObjects[slotIndex] : null;
-
-        if (existingPig == null)
-        {
-            var slotLocalPosition = slotObjects[slotIndex].transform.localPosition;
-            existingPig = CreatePigObject(
-                $"SlotPig_{slotIndex}",
-                slotRoot,
-                new Vector3(slotLocalPosition.x, SlotPigVerticalOffset, slotLocalPosition.z),
-                state.Color,
-                state.Ammo,
-                SlotPigScale);
-
-            if (slotIndex < slotPigObjects.Count)
-            {
-                slotPigObjects[slotIndex] = existingPig;
-            }
-        }
-
-        if (existingPig == null)
-        {
-            return;
-        }
-
-        var pigView = existingPig.GetComponent<PigView>();
-
-        if (pigView != null)
-        {
-            var slotLocalPosition = slotObjects[slotIndex].transform.localPosition;
-            pigView.Initialize(slotRoot, state.Color);
-            existingPig.transform.localPosition = new Vector3(slotLocalPosition.x, SlotPigVerticalOffset, slotLocalPosition.z);
-            existingPig.transform.localScale = SlotPigScale;
-            pigView.SetAmmo(state.Ammo);
-        }
-
-        EnsurePigCollider(existingPig);
-        EnsureSlotPigClickRelay(existingPig, slotIndex);
-    }
-
-    private void DestroySlotPig(int slotIndex)
-    {
-        if (slotIndex < 0 || slotIndex >= slotPigObjects.Count)
-        {
-            return;
-        }
-
-        if (slotPigObjects[slotIndex] != null)
-        {
-            Destroy(slotPigObjects[slotIndex]);
-            slotPigObjects[slotIndex] = null;
-        }
-    }
-
-    private void ClearSlotPigs()
-    {
-        for (var i = 0; i < slotPigObjects.Count; i++)
-        {
-            if (slotPigObjects[i] != null)
-            {
-                Destroy(slotPigObjects[i]);
-            }
-        }
-
-        slotPigObjects.Clear();
-    }
-
-    private GameObject CreatePigObject(string name, Transform parent, Vector3 localPosition, PixelPigColor color, int ammo, Vector3 localScale)
-    {
-        var prefab = GetPigPrefab();
-
-        if (prefab == null)
-        {
-            return null;
-        }
-
-        var pigObject = Instantiate(prefab, parent, false);
-        pigObject.name = name;
-        pigObject.transform.localPosition = localPosition;
-        pigObject.transform.localScale = localScale;
-        EnsurePigCollider(pigObject);
-
-        var pigView = pigObject.GetComponent<PigView>();
-
-        if (pigView != null)
-        {
-            pigView.Initialize(parent, color);
-            pigObject.transform.localPosition = localPosition;
-            pigObject.transform.localScale = localScale;
-            pigView.SetAmmo(ammo);
-        }
-
-        return pigObject;
-    }
-
-    private static void EnsurePigCollider(GameObject pigObject)
-    {
-        if (pigObject == null)
-        {
-            return;
-        }
-
-        var collider = pigObject.GetComponent<BoxCollider>();
-
-        if (collider == null)
-        {
-            collider = pigObject.AddComponent<BoxCollider>();
-        }
-
-        collider.center = PigColliderCenter;
-        collider.size = PigColliderSize;
-    }
-
-    private void EnsureSlotPigClickRelay(GameObject pigObject, int slotIndex)
-    {
-        if (pigObject == null)
-        {
-            return;
-        }
-
-        var existingRelay = pigObject.GetComponent<ClickRelay>();
-
-        if (existingRelay != null)
-        {
-            Destroy(existingRelay);
-        }
-
-        var relay = pigObject.AddComponent<ClickRelay>();
-        relay.Clicked += () => SlotClicked?.Invoke(slotIndex);
-    }
-
-    private GameObject GetPigPrefab()
-    {
-        if (pigPrefab == null)
-        {
-            pigPrefab = Resources.Load<GameObject>(PigPrefabResourcePath);
-        }
-
-        if (pigPrefab == null)
-        {
-            Debug.LogError($"Pig prefab not found at Resources path '{PigPrefabResourcePath}'.");
-        }
-
-        return pigPrefab;
-    }
 }

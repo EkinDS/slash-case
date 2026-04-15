@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class PixelFlowGamePresenter : IDisposable
+public sealed class PixelFlowGamePresenter : IPixelFlowGamePresenter
 {
-    private const string PigPrefabResourcePath = "Pig/Prefabs/Pig";
     private const int ConveyorCapacity = 5;
     private const float BasePigSpeed = 15F;
     private const float ConveyorPadding = 3.175F;
@@ -17,12 +16,14 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private readonly IWaitingSlotsView waitingSlotsView;
     private readonly IPixelFlowHudView hudView;
     private readonly Transform pigLayer;
+    private readonly IPigViewFactory pigViewFactory;
 
     private PixelGridModel gridModel;
     private ConveyorLoopModel conveyorLoopModel;
     private readonly List<List<PigModel>> pigLines = new List<List<PigModel>>();
     private readonly List<PigModel> activePigs = new List<PigModel>();
     private readonly List<IPigView> activePigViews = new List<IPigView>();
+    private readonly List<IPigView> waitingPigViews = new List<IPigView>();
     private readonly List<PigModel> slotAssignments = new List<PigModel>();
 
     private PixelFlowLevelData currentLevelData;
@@ -36,18 +37,17 @@ public sealed class PixelFlowGamePresenter : IDisposable
     private float guaranteeRampProgress;
     private int nextPigId;
     private int pendingShots;
-    private GameObject pigPrefab;
 
     public PixelFlowGamePresenter(IPixelGridView gridView, IWaitingSlotsView waitingSlotsView, IPixelFlowHudView hudView,
-        Transform pigLayer)
+        Transform pigLayer, IPigViewFactory pigViewFactory)
     {
         this.gridView = gridView;
         this.waitingSlotsView = waitingSlotsView;
         this.hudView = hudView;
         this.pigLayer = pigLayer;
+        this.pigViewFactory = pigViewFactory;
 
         waitingSlotsView.SlotClicked += OnSlotClicked;
-        waitingSlotsView.PigLineClicked += OnPigLineClicked;
     }
 
     public event Action RestartRequested;
@@ -110,6 +110,8 @@ public sealed class PixelFlowGamePresenter : IDisposable
             pigLines.Add(new List<PigModel>());
         }
 
+        waitingSlotsView.SetLineCount(lineCount);
+
         nextPigId = 1;
         GeneratePigLinesFromPuzzle();
         RenderWaitingArea();
@@ -152,7 +154,6 @@ public sealed class PixelFlowGamePresenter : IDisposable
     public void Dispose()
     {
         waitingSlotsView.SlotClicked -= OnSlotClicked;
-        waitingSlotsView.PigLineClicked -= OnPigLineClicked;
         hudView.RestartRequested -= OnRestartRequested;
         hudView.EditorToggleRequested -= OnEditorToggleRequested;
         gridView.CellClicked -= OnCellClicked;
@@ -474,11 +475,14 @@ public sealed class PixelFlowGamePresenter : IDisposable
             lineStates.Add(queuedStates);
         }
 
-        waitingSlotsView.Render(states, lineStates);
+        waitingSlotsView.RenderSlots(states);
+        RebuildWaitingPigViews(lineStates);
     }
 
     private void ClearPigs()
     {
+        ClearWaitingPigViews();
+
         for (var i = 0; i < activePigViews.Count; i++)
         {
             activePigViews[i]?.DestroySelf();
@@ -539,38 +543,16 @@ public sealed class PixelFlowGamePresenter : IDisposable
         pig.TotalDistanceTravelled = activePigs.Count * LaunchSpacing;
         activePigs.Add(pig);
 
-        var pigViewObject = CreatePigViewObject(pig.Id);
-        var pigView = pigViewObject != null ? pigViewObject.GetComponent<PigView>() : null;
+        var pigView = pigViewFactory.Create(pigLayer, $"PigView_{pig.Id}", pig.Color, pig.AmmoRemaining);
 
         if (pigView == null)
         {
-            pigViewObject = new GameObject($"PigView_{pig.Id}");
-            pigView = pigViewObject.AddComponent<PigView>();
+            return;
         }
 
-        pigView.Initialize(pigLayer, pig.Color);
         pigView.SetPosition(conveyorLoopModel.EvaluatePosition(pig.Distance));
-        pigView.SetAmmo(pig.AmmoRemaining);
         pigView.PlayLaunch();
         activePigViews.Add(pigView);
-    }
-
-    private GameObject CreatePigViewObject(int pigId)
-    {
-        if (pigPrefab == null)
-        {
-            pigPrefab = Resources.Load<GameObject>(PigPrefabResourcePath);
-        }
-
-        if (pigPrefab == null)
-        {
-            Debug.LogError($"Pig prefab not found at Resources path '{PigPrefabResourcePath}'.");
-            return null;
-        }
-
-        var pigViewObject = UnityEngine.Object.Instantiate(pigPrefab);
-        pigViewObject.name = $"PigView_{pigId}";
-        return pigViewObject;
     }
 
     private bool TryGetAlignedLineIndex(Vector2 pigPosition, ConveyorSide side, out int lineIndex)
@@ -661,6 +643,78 @@ public sealed class PixelFlowGamePresenter : IDisposable
 
         index = rawIndex;
         return true;
+    }
+
+    private void RebuildWaitingPigViews(IReadOnlyList<IReadOnlyList<QueuedPigState>> lineStates)
+    {
+        ClearWaitingPigViews();
+
+        for (var slotIndex = 0; slotIndex < slotAssignments.Count; slotIndex++)
+        {
+            var pig = slotAssignments[slotIndex];
+
+            if (pig == null)
+            {
+                continue;
+            }
+
+            var pigView = pigViewFactory.Create(pigLayer, $"SlotPig_{slotIndex}", pig.Color, pig.AmmoRemaining);
+
+            if (pigView == null)
+            {
+                continue;
+            }
+
+            pigView.SetWorldPosition(waitingSlotsView.GetSlotWorldPosition(slotIndex));
+            var capturedSlotIndex = slotIndex;
+            pigView.SetClickAction(() => OnSlotClicked(capturedSlotIndex));
+            waitingPigViews.Add(pigView);
+        }
+
+        for (var lineIndex = 0; lineIndex < lineStates.Count; lineIndex++)
+        {
+            var states = lineStates[lineIndex];
+
+            if (states == null)
+            {
+                continue;
+            }
+
+            for (var pigIndex = 0; pigIndex < states.Count; pigIndex++)
+            {
+                var state = states[pigIndex];
+                var pigView = pigViewFactory.Create(pigLayer, $"QueuedPig_{lineIndex}_{pigIndex}", state.Color, state.Ammo);
+
+                if (pigView == null)
+                {
+                    continue;
+                }
+
+                pigView.SetWorldPosition(waitingSlotsView.GetLinePigWorldPosition(lineIndex, pigIndex));
+
+                if (pigIndex == 0)
+                {
+                    var capturedLineIndex = lineIndex;
+                    pigView.SetClickAction(() => OnPigLineClicked(capturedLineIndex));
+                }
+                else
+                {
+                    pigView.ClearClickAction();
+                }
+
+                waitingPigViews.Add(pigView);
+            }
+        }
+    }
+
+    private void ClearWaitingPigViews()
+    {
+        for (var i = 0; i < waitingPigViews.Count; i++)
+        {
+            waitingPigViews[i]?.DestroySelf();
+        }
+
+        waitingPigViews.Clear();
     }
 
     private void GeneratePigLinesFromPuzzle()

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public sealed class PixelFlowLevelSaveLoad
+public sealed class PixelFlowLevelSaveLoad : ILevelSaveLoad
 {
     private const string LevelDataKeyPrefix = "PixelFlow.Level.";
 

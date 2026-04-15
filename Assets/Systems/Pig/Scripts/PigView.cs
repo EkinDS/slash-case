@@ -1,10 +1,13 @@
 using System.Collections;
+using System;
 using TMPro;
 using UnityEngine;
 
 public sealed class PigView : MonoBehaviour, IPigView
 {
     private const float PigScaleMultiplier = 3F;
+    private static readonly Vector3 ClickColliderCenter = new Vector3(0F, 0.55F, 0F);
+    private static readonly Vector3 ClickColliderSize = new Vector3(1.2F, 1.1F, 1.2F);
     [SerializeField] private SkinnedMeshRenderer renderer;
     [SerializeField] private TextMeshPro bulletCountText;
     
@@ -59,6 +62,12 @@ public sealed class PigView : MonoBehaviour, IPigView
         OrientAmmoText();
     }
 
+    public void SetWorldPosition(Vector3 worldPosition)
+    {
+        cachedTransform.position = worldPosition;
+        OrientAmmoText();
+    }
+
     public void SetMovementDirection(Vector2 direction)
     {
         if (direction.sqrMagnitude <= 0.0001F)
@@ -82,6 +91,46 @@ public sealed class PigView : MonoBehaviour, IPigView
         if (bulletCountText != null)
         {
             bulletCountText.text = ammo.ToString();
+        }
+    }
+
+    public void SetClickAction(Action onClick)
+    {
+        var existingRelay = GetComponent<ClickRelay>();
+
+        if (existingRelay != null)
+        {
+            Destroy(existingRelay);
+        }
+
+        var relay = gameObject.AddComponent<ClickRelay>();
+        relay.Clicked += onClick;
+
+        var collider = GetComponent<BoxCollider>();
+
+        if (collider == null)
+        {
+            collider = gameObject.AddComponent<BoxCollider>();
+        }
+
+        collider.center = ClickColliderCenter;
+        collider.size = ClickColliderSize;
+    }
+
+    public void ClearClickAction()
+    {
+        var relay = GetComponent<ClickRelay>();
+
+        if (relay != null)
+        {
+            Destroy(relay);
+        }
+
+        var collider = GetComponent<Collider>();
+
+        if (collider != null)
+        {
+            Destroy(collider);
         }
     }
 

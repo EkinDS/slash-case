@@ -9,11 +9,12 @@ public class GameInitializer : MonoBehaviour
     private int currentLevelIndex;
     private Coroutine levelTransitionCoroutine;
 
-    private PixelFlowGamePresenter gamePresenter;
-    private LevelEditorPresenter levelEditorPresenter;
-    private PixelFlowLevelSaveLoad levelSaveLoad;
-    private LevelEditorView levelEditorView;
-    private PixelFlowHudView hudView;
+    private IPixelFlowGamePresenter gamePresenter;
+    private ILevelEditorPresenter levelEditorPresenter;
+    private ILevelSaveLoad levelSaveLoad;
+    private ILevelCatalog levelCatalog;
+    private ILevelEditorView levelEditorView;
+    private IPixelFlowHudView hudView;
 
     private void Awake()
     {
@@ -22,25 +23,34 @@ public class GameInitializer : MonoBehaviour
         var worldRoot = new GameObject("WorldRoot").transform;
         worldRoot.SetParent(transform, false);
 
-        var gridView = new GameObject("PixelGridView").AddComponent<PixelGridView>();
-        gridView.Initialize(worldRoot);
+        ICellPrefabProvider cellPrefabProvider = new ResourcesCellPrefabProvider();
+        IPigPrefabProvider pigPrefabProvider = new ResourcesPigPrefabProvider();
+        levelSaveLoad = new PixelFlowLevelSaveLoad();
+        levelCatalog = new ResourcesLevelCatalog("Levels");
 
-        var slotsView = new GameObject("WaitingSlotsView").AddComponent<WaitingSlotsView>();
-        slotsView.Initialize(worldRoot);
+        var gridViewBehaviour = new GameObject("PixelGridView").AddComponent<PixelGridView>();
+        gridViewBehaviour.Initialize(worldRoot, cellPrefabProvider);
+        IPixelGridView gridView = gridViewBehaviour;
 
-        hudView = new GameObject("HudView").AddComponent<PixelFlowHudView>();
-        hudView.Initialize(worldRoot);
+        var slotsViewBehaviour = new GameObject("WaitingSlotsView").AddComponent<WaitingSlotsView>();
+        slotsViewBehaviour.Initialize(worldRoot);
+        IWaitingSlotsView slotsView = slotsViewBehaviour;
 
-        levelEditorView = new GameObject("LevelEditorView").AddComponent<LevelEditorView>();
-        levelEditorView.Initialize(worldRoot);
+        var hudViewBehaviour = new GameObject("HudView").AddComponent<PixelFlowHudView>();
+        hudViewBehaviour.Initialize(worldRoot);
+        hudView = hudViewBehaviour;
+
+        var levelEditorViewBehaviour = new GameObject("LevelEditorView").AddComponent<LevelEditorView>();
+        levelEditorViewBehaviour.Initialize(worldRoot);
+        levelEditorView = levelEditorViewBehaviour;
         levelEditorView.SetVisible(false);
 
-        levelSaveLoad = new PixelFlowLevelSaveLoad();
-        loadedLevels = PixelFlowLevelLoader.LoadAllFromResources("Levels");
+        loadedLevels = levelCatalog.LoadAll();
         currentLevelIndex = 0;
         currentLevelData = GetCurrentLoadedLevel();
 
-        gamePresenter = new PixelFlowGamePresenter(gridView, slotsView, hudView, gridView.PigRoot);
+        var pigViewFactory = new PigViewFactory(pigPrefabProvider);
+        gamePresenter = new PixelFlowGamePresenter(gridView, slotsView, hudView, gridView.PigRoot, pigViewFactory);
         gamePresenter.Initialize();
         gamePresenter.RestartRequested += RestartLevel;
         gamePresenter.EditorToggleRequested += ToggleEditor;
@@ -107,7 +117,7 @@ public class GameInitializer : MonoBehaviour
 
     private void ToggleEditor()
     {
-        var newState = !levelEditorView.gameObject.activeSelf;
+        var newState = !levelEditorView.IsVisible;
         levelEditorView.SetVisible(newState);
         gamePresenter.SetEditorOpen(newState);
 
@@ -133,7 +143,7 @@ public class GameInitializer : MonoBehaviour
     {
         currentLevelData = CloneLevel(levelData ?? GetCurrentLoadedLevel());
         gamePresenter.LoadLevel(currentLevelData);
-        gamePresenter.SetEditorOpen(levelEditorView != null && levelEditorView.gameObject.activeSelf);
+        gamePresenter.SetEditorOpen(levelEditorView != null && levelEditorView.IsVisible);
         hudView?.SetLevelLabel($"Level {currentLevelData.id}");
 
         if (updateEditor)

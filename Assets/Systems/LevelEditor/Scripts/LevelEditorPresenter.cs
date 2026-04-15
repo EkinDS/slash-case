@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
 
-public sealed class LevelEditorPresenter : IDisposable
+public sealed class LevelEditorPresenter : ILevelEditorPresenter
 {
     private const int FixedBoardSize = 20;
 
     private readonly ILevelEditorView view;
-    private readonly PixelFlowLevelSaveLoad saveLoad;
+    private readonly ILevelSaveLoad saveLoad;
     private readonly Func<PixelFlowLevelData> getDefaultLevel;
     private readonly Action<PixelFlowLevelData> applyLevel;
 
     private PixelFlowLevelData workingLevel;
 
-    public LevelEditorPresenter(ILevelEditorView view, PixelFlowLevelSaveLoad saveLoad, Func<PixelFlowLevelData> getDefaultLevel,
+    public LevelEditorPresenter(ILevelEditorView view, ILevelSaveLoad saveLoad, Func<PixelFlowLevelData> getDefaultLevel,
         Action<PixelFlowLevelData> applyLevel)
     {
         this.view = view;

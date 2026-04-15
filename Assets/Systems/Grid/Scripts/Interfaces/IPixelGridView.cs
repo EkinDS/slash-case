@@ -6,6 +6,7 @@ public interface IPixelGridView
     event Action<int, int> CellClicked;
 
     Rect BoardRect { get; }
+    Transform PigRoot { get; }
 
     void BuildGrid(int width, int height);
     void RenderCell(int x, int y, PixelPigColor color, bool alive);

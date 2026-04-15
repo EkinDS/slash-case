@@ -21,6 +21,8 @@ public sealed class LevelEditorView : MonoBehaviour, ILevelEditorView
     public event Action LoadRequested;
     public event Action ResetRequested;
 
+    public bool IsVisible => root != null && root.gameObject.activeSelf;
+
     public void Initialize(Transform parent)
     {
         root = new GameObject("LevelEditor").transform;
